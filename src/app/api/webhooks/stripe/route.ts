@@ -155,26 +155,31 @@ async function triggerEmailFulfillment(
   lang: string
 ) {
   try {
-    // Insert Day-0 email event using RPC function
+    // Insert Day-0 email event using RPC function (immediate delivery)
     const { data: emailEvent, error: emailEventError } = await supabaseAdmin.rpc('insert_email_event', {
       p_lead_id: sessionId,
       p_template_key: 'day_0',
       p_lang: lang,
-      p_status: 'queued',
+      p_status: 'queued', // Immediate delivery
       p_metadata: {
         order_id: orderId,
         quiz_id: quizId,
         trigger: 'payment_success',
+        day_number: 0,
         created_at: new Date().toISOString()
       }
     })
 
     if (emailEventError) {
-      console.error('Failed to create email event via RPC:', emailEventError)
+      console.error('Failed to create Day-0 email event via RPC:', emailEventError)
       throw new Error('Email event creation failed')
     }
 
     console.log('Day-0 email event created via RPC for order:', orderId)
+
+    // Schedule follow-up emails (Day 2 and Day 5)
+    const { scheduleFollowUpEmails } = await import('@/lib/email-scheduler')
+    await scheduleFollowUpEmails(sessionId, orderId, quizId, lang)
 
     // Update session state to completed
     await supabaseAdmin

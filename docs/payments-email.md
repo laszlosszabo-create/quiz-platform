@@ -2,12 +2,67 @@
 
 ## Overview
 
-The quiz platform integrates Stripe payments with automatic email fulfillment. When a user completes a payment, the system:
+The quiz platform integrates Stripe payments with multi-day email delivery system. When a user completes a payment, the system:
 
 1. **Validates** the Stripe webhook
-2. **Creates** an order record
-3. **Triggers** Day-0 email fulfillment
-4. **Updates** session state to completed
+2. **Creates** an order record via RPC bypass
+3. **Triggers** Day-0 email fulfillment (immediate)
+4. **Schedules** Day-2 and Day-5 follow-up emails
+5. **Updates** session state to completed
+
+## Module 5: Email Delivery System
+
+### Email Template System
+
+**Template Keys:**
+- `day_0`: Immediate fulfillment email after payment (order confirmation + 25% discount offer)
+- `day_2`: Follow-up tips email with soft upsell (ADHD practical tips)
+- `day_5`: Final urgency email with hard upsell (last chance discount)
+
+**Language Support:**
+- Hungarian (`hu`): Primary language with complete templates
+- English (`en`): Fallback language with translated templates
+- Fallback: If requested language unavailable, defaults to Hungarian
+
+**Template Variables:**
+- `{{name}}`: User's full name or "Kedves Résztvevő" as fallback
+- `{{first_name}}`: User's first name
+- `{{result_url}}`: Personalized quiz results page URL
+- `{{download_url}}`: PDF download + consultation booking URL
+- `{{quiz_title}}`: Quiz title (e.g., "ADHD Gyorsteszt")
+- `{{quiz_slug}}`: Quiz identifier for tracking
+
+### Email Scheduling Flow
+
+```
+Payment Success (Stripe Webhook)
+    ↓
+Day 0: Immediate fulfillment email (status: queued)
+    ↓
+Day 2: Tips email scheduled (status: scheduled)
+    ↓
+Day 5: Urgency email scheduled (status: scheduled)
+```
+
+**Status Transitions:**
+1. `scheduled` → `queued` (when due date reached)
+2. `queued` → `sent` (successful delivery)
+3. `queued` → `failed` (delivery error, max 3 retries)
+
+### Resend API Integration
+
+**Configuration:**
+```env
+RESEND_API_KEY=re_3ej2WWnU_E9KZsyFUrvnygfsLCBLaFUaD
+FROM_EMAIL="ADHD Quiz <onboarding@resend.dev>"
+```
+
+**Delivery Process:**
+1. Fetch `queued` email events from database
+2. Render template with user variables
+3. Send via Resend API with proper headers
+4. Update status to `sent` or `failed`
+5. Retry failed emails up to 3 times
 
 ## Payment Flow
 
