@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 // Validation schema - simplified for Module 3 compatibility
 const createLeadSchema = z.object({
@@ -16,11 +16,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const validatedData = createLeadSchema.parse(body)
-    
-    const supabase = createClient()
 
     // Find quiz by slug first
-    const { data: quiz } = await supabase
+    const { data: quiz } = await supabaseAdmin
       .from('quizzes')
       .select('id')
       .eq('slug', validatedData.quizSlug)
@@ -31,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if lead already exists for this quiz and email
-    const { data: existingLead } = await supabase
+    const { data: existingLead } = await supabaseAdmin
       .from('quiz_leads')
       .select('id')
       .eq('quiz_id', quiz.id)
@@ -47,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new lead
-    const { data: lead, error } = await supabase
+    const { data: lead, error } = await supabaseAdmin
       .from('quiz_leads')
       .insert({
         quiz_id: quiz.id,

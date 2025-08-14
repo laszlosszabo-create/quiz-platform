@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 // Validation schemas
 const createSessionSchema = z.object({
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createSessionSchema.parse(body)
 
     // First, get the quiz by slug
-    const { data: quiz, error: quizError } = await supabase
+    const { data: quiz, error: quizError } = await supabaseAdmin
       .from('quizzes')
       .select('id')
       .eq('slug', validatedData.quizSlug)
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const client_token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
     // Create new session
-    const { data: session, error } = await supabase
+    const { data: session, error } = await supabaseAdmin
       .from('quiz_sessions')
       .insert({
         quiz_id: quiz.id,
@@ -100,7 +100,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update session
-    const { data: session, error } = await supabase
+    const { data: session, error } = await supabaseAdmin
       .from('quiz_sessions')
       .update(updateData)
       .eq('id', validatedData.session_id)
