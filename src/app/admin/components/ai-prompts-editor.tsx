@@ -264,6 +264,39 @@ Please provide personalized feedback based on these results. Be positive and con
     }
   }
 
+  const deletePrompt = async () => {
+    if (!formData.id) return
+    try {
+      setError('')
+      const confirmed = confirm('Biztosan törli ezt az AI promptot?')
+      if (!confirmed) return
+
+      const url = `/api/admin/ai-prompts?id=${formData.id}&quiz_id=${quizId}`
+      const response = await fetch(url, { method: 'DELETE' })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete AI prompt')
+      }
+
+      // Optionally create audit log entry client-side if server doesn't
+      await createAuditLogEntry('delete_ai_prompt', formData.id, { quiz_id: quizId, lang: formData.lang })
+
+      await loadPrompts()
+      setFormData({
+        lang: currentLang,
+        system_prompt: getDefaultSystemPrompt(currentLang),
+        user_prompt: getDefaultUserPrompt(currentLang),
+        ai_provider: 'openai',
+        ai_model: 'gpt-4o'
+      })
+      setSuccessMessage('AI prompt törölve')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (err) {
+      console.error('Failed to delete AI prompt:', err)
+      setError('AI prompt törlése sikertelen')
+    }
+  }
+
   // Create audit log entry
   const createAuditLogEntry = async (action: string, resourceId: string, details?: any) => {
     try {
@@ -340,6 +373,11 @@ Please provide personalized feedback based on these results. Be positive and con
             <TestTube className="w-4 h-4 mr-2" />
             Teszt
           </Button>
+          {formData.id && (
+            <Button onClick={deletePrompt} variant="destructive" size="sm">
+              Törlés
+            </Button>
+          )}
           <Button 
             onClick={savePrompts} 
             disabled={isSaving}
