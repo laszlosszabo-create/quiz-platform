@@ -1,3 +1,24 @@
+## OpenAI teszt végpont (admin AI Prompt fül)
+
+**Probléma:** Szükség volt egy szerver oldali végpontra, amely lehetővé teszi az admin felületen az AI promptok valós OpenAI API-val történő tesztelését.
+
+**Megoldás:**
+
+1. Létrehoztuk a `/api/admin/ai-prompts/openai-test` Next.js API route-ot.
+2. Ez a végpont POST kérést vár, amely tartalmazza a system promptot, user promptot, AI modellt, providert és teszt adatokat.
+3. A végpont a user promptban lecseréli a változókat a teszt adatokra, majd meghívja az OpenAI API-t (chat/completions endpoint).
+4. Az eredményt visszaadja a frontendnek, amely az admin UI-ban megjelenik.
+
+**Használat:**
+- Az admin felületen az AI Prompt fülön a "Teszt" gomb elküldi a promptot a végpontra, és az OpenAI válaszát egy alertben jeleníti meg.
+
+**Hibalehetőségek:**
+- Hiányzó OpenAI API kulcs → 500-as hiba
+- Hibás vagy hiányzó prompt → 400-as hiba
+- OpenAI API hiba → 500-as hiba, részletes üzenettel
+
+**Kód:**
+- `src/app/api/admin/ai-prompts/openai-test/route.ts`
 # Troubleshooting Guide - Module 6 Questions Editor
 
 ## 🐛 Hibák és Megoldások
@@ -314,6 +335,34 @@ export async function POST() { /* server logic */ }
 
 // 3. Audit logging pattern
 await fetch('/api/admin/audit-log', { /* audit data */ })
+```
+
+## 8. Database Schema Mismatches ⚠️
+
+### AI Prompts Table Name Issue
+**Problem**: API returns 500 error with "Could not find the table 'quiz_prompts'"
+**Root Cause**: Database has `quiz_ai_prompts` table, but code references `quiz_prompts`
+**Solution**: 
+```typescript
+// Use correct table name in API routes
+await supabase.from('quiz_ai_prompts').select('*')
+```
+
+### Field Name Mismatches
+**Problem**: Components use different field names than database schema
+**Root Cause**: Frontend uses `user_prompt`, DB uses `user_prompt_template`
+**Solution**:
+```typescript
+// Map frontend fields to DB fields
+user_prompt_template: user_prompt // when inserting/updating
+user_prompt: prompt.user_prompt_template // when reading
+```
+
+### Quick Fix Reference
+```bash
+# Check table name in Supabase
+# Look for hint in error: "Perhaps you meant the table 'public.quiz_ai_prompts'"
+# Update API route to use suggested table name
 ```
 
 Ez a dokumentáció segít a jövőbeli hasonló hibák gyors azonosításában és megoldásában! 📚

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import QuestionsEditor from '../../../../components/questions-editor'
 import ScoringRulesEditor from '../../../../components/scoring-rules-editor'
+import AIPromptsEditor from '../../../../components/ai-prompts-editor'
 import type { AdminUser } from '@/lib/admin-auth'
 import type { Database } from '@/types/database'
 
@@ -118,6 +119,7 @@ export default function QuizEditForm({ quiz, adminUser }: QuizEditFormProps) {
     { id: 'general', name: 'Általános', icon: '⚙️' },
     { id: 'questions', name: 'Kérdések', icon: '❓' },
     { id: 'scoring', name: 'Pontozás', icon: '🎯' },
+    { id: 'ai-prompts', name: 'AI Prompts', icon: '🤖' },
     { id: 'theme', name: 'Téma', icon: '🎨' },
     { id: 'features', name: 'Funkciók', icon: '🔧' },
   ]
@@ -227,6 +229,13 @@ export default function QuizEditForm({ quiz, adminUser }: QuizEditFormProps) {
         </div>
       )}
 
+      {/* AI Prompts Tab */}
+      {activeTab === 'ai-prompts' && (
+        <div className="space-y-6">
+          <AIPromptsEditor quizId={quiz.id} adminUser={adminUser} />
+        </div>
+      )}
+
       {/* Theme Tab */}
       {activeTab === 'theme' && (
         <div className="space-y-6">
@@ -327,7 +336,7 @@ export default function QuizEditForm({ quiz, adminUser }: QuizEditFormProps) {
       {/* Questions Tab */}
       {activeTab === 'questions' && (
         <div>
-          <QuestionsEditor quizId={quiz.id} />
+          <QuestionsEditor quizId={quiz.id} adminUser={adminUser} />
         </div>
       )}
 

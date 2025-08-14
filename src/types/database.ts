@@ -63,7 +63,10 @@ export interface QuizPrompt extends BaseEntity {
   quiz_id: string
   lang: string
   system_prompt?: string
+  user_prompt?: string
   user_prompt_template?: string
+  ai_provider?: string
+  ai_model?: string
   variables?: Json
 }
 
