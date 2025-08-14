@@ -123,14 +123,13 @@ export interface AdminUser extends BaseEntity {
   role: AdminRole
 }
 
-export interface AuditLog {
-  id: string
-  actor_id?: string
+export interface AuditLog extends BaseEntity {
+  user_id: string
+  user_email: string
   action: string
-  entity: string
-  entity_id?: string
-  diff?: Json
-  created_at?: string
+  resource_type: string
+  resource_id: string
+  details?: Json
 }
 
 // Database schema interface

@@ -7,7 +7,7 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 ## [Unreleased]
 
 ### 🎯 In Progress
-- Module 4: Stripe + Email implementation
+- Module 6: Translation Management - Advanced features and enhancements
 
 ### 📋 Planned Modules
 4. [Stripe + E-mail] - Fizetés és kommunikáció
@@ -15,6 +15,55 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 6. [Guardrails + i18n] - Biztonság és nyelvesítés
 
 ---
+
+## [0.6.2] - 2025-08-14
+
+### ✅ Added
+- **Scoring Rules Editor almódúl** - Teljes kategória-alapú pontozási rendszer
+- **Category-based Scoring System** - Pontozási kategóriák és súlyozás
+- **Threshold Management** - Küszöbértékek beállítása eredményekhez
+- **Result Templates** - Dinamikus eredmény template-ek változókkal
+- **Weight System** - Scoring súlyozási rendszer (0.1-10x multipliers)
+- **Validation System** - Duplikált kategóriák és boundary ellenőrzés
+
+### 🔧 Enhanced
+- **Quiz Editor Tabs** - Scoring Rules tab hozzáadva
+- **UI Components** - Shadcn/ui teljes component library
+- **Database Migration** - Enhanced scoring rules with RLS policies
+- **Admin Interface** - Tab-based navigation továbbfejlesztve
+
+### 📚 Technical
+- **JSONB Storage** - Flexible scoring data structure
+- **Component Architecture** - Extended scoring rule interface
+- **API Integration** - Audit logging for scoring operations
+- **Responsive Design** - Mobile-friendly scoring rule editor
+
+## [0.6.1] - 2025-08-14
+
+### ✅ Added
+- **Questions Editor almódúl** - Teljes CRUD funkciók quiz kérdésekhez
+- **Drag & Drop Reordering** - @hello-pangea/dnd integráció
+- **Question Validation** - 5-20 kérdés limit ellenőrzés
+- **Audit Logging System** - Admin műveletek nyomon követése
+- **API Route Architecture** - Client-server kommunikáció audit logokhoz
+
+### 🔧 Fixed
+- **Multiple GoTrueClient Warning** - Singleton pattern implementálása
+- **Client-Server Import Conflicts** - Proper separation of concerns
+- **Import/Export Mismatches** - Consistent module exports
+- **Component Architecture** - React optimization with useMemo
+
+### 📚 Documentation
+- **TROUBLESHOOTING.md** - Comprehensive error handling guide
+- **QUICK_FIX_REFERENCE.md** - Quick reference for common issues
+- **MODULE6_PROGRESS.md** - Detailed implementation progress
+- **Architecture Best Practices** - Client/server separation patterns
+
+### 🎯 Technical Improvements
+- Supabase client architecture refactor
+- Enhanced error handling and validation
+- Production-ready Questions Editor component
+- Audit logging infrastructure
 
 ## [0.3.0] - 2025-08-14
 

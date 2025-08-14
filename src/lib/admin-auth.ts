@@ -56,7 +56,7 @@ export async function requireAdmin(minimumRole: AdminRole = 'viewer'): Promise<A
   const adminUser = await getAdminUser()
   
   if (!adminUser) {
-    redirect('/admin/login')
+    redirect('/login/admin')
   }
 
   // Check role hierarchy: owner > editor > viewer

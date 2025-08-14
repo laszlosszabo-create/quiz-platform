@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 import { getTranslations } from '@/lib/translations'
 import { LandingPageClient } from './landing-page-client'
 
@@ -26,6 +26,7 @@ export async function generateMetadata({ params }: LandingPageProps): Promise<Me
   const { lang, quizSlug } = await params
   
   // Get quiz data
+  const supabase = createClient()
   const { data: quiz } = await supabase
     .from('quizzes')
     .select('id, default_lang, theme')
@@ -83,6 +84,7 @@ export default async function LandingPage({
   }
 
   // Get quiz data
+  const supabase = createClient()
   const { data: quiz, error: quizError } = await supabase
     .from('quizzes')
     .select('*')

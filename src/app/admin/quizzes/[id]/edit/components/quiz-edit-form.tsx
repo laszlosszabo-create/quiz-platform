@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
+import QuestionsEditor from '../../../../components/questions-editor'
+import ScoringRulesEditor from '../../../../components/scoring-rules-editor'
 import type { AdminUser } from '@/lib/admin-auth'
 import type { Database } from '@/types/database'
 
@@ -114,6 +116,8 @@ export default function QuizEditForm({ quiz, adminUser }: QuizEditFormProps) {
 
   const tabs = [
     { id: 'general', name: 'Általános', icon: '⚙️' },
+    { id: 'questions', name: 'Kérdések', icon: '❓' },
+    { id: 'scoring', name: 'Pontozás', icon: '🎯' },
     { id: 'theme', name: 'Téma', icon: '🎨' },
     { id: 'features', name: 'Funkciók', icon: '🔧' },
   ]
@@ -206,6 +210,20 @@ export default function QuizEditForm({ quiz, adminUser }: QuizEditFormProps) {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Questions Tab */}
+      {activeTab === 'questions' && (
+        <div className="space-y-6">
+          <QuestionsEditor quizId={quiz.id} adminUser={adminUser} />
+        </div>
+      )}
+
+      {/* Scoring Rules Tab */}
+      {activeTab === 'scoring' && (
+        <div className="space-y-6">
+          <ScoringRulesEditor quizId={quiz.id} adminUser={adminUser} />
         </div>
       )}
 
@@ -303,6 +321,13 @@ export default function QuizEditForm({ quiz, adminUser }: QuizEditFormProps) {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Questions Tab */}
+      {activeTab === 'questions' && (
+        <div>
+          <QuestionsEditor quizId={quiz.id} />
         </div>
       )}
 

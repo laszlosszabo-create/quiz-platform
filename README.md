@@ -116,7 +116,27 @@ Részletes deploy útmutató: [docs/deploy/README.md](docs/deploy/README.md)
 
 ## 📚 Dokumentáció
 
+### Modulonkénti Dokumentáció
 Minden modul részletes dokumentációja a `docs/` könyvtárban található.
+
+### Fejlesztői Dokumentáció
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Hibakeresési útmutató és megoldások
+- **[QUICK_FIX_REFERENCE.md](QUICK_FIX_REFERENCE.md)** - Gyors referencia kártya gyakori hibákhoz
+- **[MODULE6_PROGRESS.md](MODULE6_PROGRESS.md)** - Module 6 fejlesztési állapot
+- **[BRIEF.md](BRIEF.md)** - Projekt specifikáció és követelmények
+- **[DATABASE_SETUP.md](DATABASE_SETUP.md)** - Adatbázis telepítési útmutató
+
+### Hasznos Parancsok
+```bash
+# Fejlesztési környezet indítása
+npm run dev
+
+# Database setup
+npm run setup:db
+
+# Tesztelés
+npm run test
+```
 
 ## 🤝 Közreműködés
 
@@ -124,6 +144,7 @@ Minden modul részletes dokumentációja a `docs/` könyvtárban található.
 2. Konvencionális commit üzenetek használata
 3. Dokumentáció frissítése
 4. Acceptance checklist lefuttatása
+5. **Hibák esetén**: TROUBLESHOOTING.md és QUICK_FIX_REFERENCE.md segítségével
 
 ## 📄 Licenc
 

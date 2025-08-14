@@ -191,6 +191,12 @@ export default function QuizTable({ quizzes, adminUser }: QuizTableProps) {
                 >
                   ✏️ Szerkesztés
                 </Link>
+                <Link
+                  href={`/admin/quizzes/${quiz.id}/translations`}
+                  className="text-purple-600 hover:text-purple-900"
+                >
+                  🌐 Fordítások
+                </Link>
                 {adminUser.role !== 'viewer' && (
                   <button
                     onClick={() => handleDuplicate(quiz.id)}
@@ -203,7 +209,7 @@ export default function QuizTable({ quizzes, adminUser }: QuizTableProps) {
                 <Link
                   href={`/${quiz.default_lang}/${quiz.slug}`}
                   target="_blank"
-                  className="text-purple-600 hover:text-purple-900"
+                  className="text-gray-600 hover:text-gray-900"
                 >
                   👁️ Előnézet
                 </Link>
