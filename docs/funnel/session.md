@@ -1,23 +1,46 @@
 # Session Management Documentation
 
 ## Overview
+A quiz session system biztosítja a felhasználói válaszok mentését és a session állapot kezelését a teljes quiz folyamat során. Client token alapú megközelítést használ autentikáció nélküli session kezeléshez.
 
-Client tokens are used to track anonymous user sessions throughout the quiz funnel, enabling autosave functionality and progress tracking without requiring authentication.
+## Session Lifecycle
 
-## Client Token Lifecycle
+### 1. Session Creation
+```typescript
+POST /api/quiz/session
+{
+  "quizSlug": "adhd-quick-check", 
+  "lang": "hu"
+}
+
+Response:
+{
+  "session_id": "uuid",
+  "client_token": "random_string"
+}
+```
+
+### 2. Session Updates
+```typescript
+PATCH /api/quiz/session
+{
+  "session_id": "uuid",
+  "answers": {"attention_1": 3, "attention_2": 1},
+  "state": "in_progress"
+}
+```
+
+### 3. Session States
+- `started` - Session létrehozva, még nincs válasz
+- `in_progress` - Van legalább egy válasz
+- `email_collected` - Email cím megadva
+- `completed` - Quiz befejezve
+- `result_viewed` - Eredmény megtekintve
+
+## Client Token Implementation
 
 ### Generation
-Client tokens are generated using the format:
-```
-client_{timestamp}_{random_string}
-```
-
-Example: `client_1692012345678_abc123def`
-
-### Storage
-- **Location**: Browser's `localStorage`
-- **Key**: `quiz_client_token`
-- **Persistence**: Survives browser sessions and page refreshes
+32 karakteres hexadecimális string generálás:
 - **Scope**: Per domain/subdomain
 
 ### Expiration

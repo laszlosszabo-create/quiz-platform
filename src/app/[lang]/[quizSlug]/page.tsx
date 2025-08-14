@@ -23,7 +23,7 @@ const LANDING_TRANSLATION_KEYS = [
 ]
 
 export async function generateMetadata({ params }: LandingPageProps): Promise<Metadata> {
-  const { lang, quizSlug } = params
+  const { lang, quizSlug } = await params
   
   // Get quiz data
   const { data: quiz } = await supabase
@@ -67,8 +67,14 @@ export async function generateMetadata({ params }: LandingPageProps): Promise<Me
   }
 }
 
-export default async function LandingPage({ params }: LandingPageProps) {
-  const { lang, quizSlug } = params
+export default async function LandingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ lang: string; quizSlug: string }>
+  searchParams: { [key: string]: string | string[] | undefined }
+}) {
+  const { lang, quizSlug } = await params
 
   // Validate language
   const supportedLangs = ['hu', 'en']

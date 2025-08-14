@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 
-// Validation schema
+// Validation schema - simplified for Module 3 compatibility
 const createLeadSchema = z.object({
-  quiz_id: z.string().uuid(),
+  quizSlug: z.string(),
   email: z.string().email(),
-  name: z.string().min(1).max(100),
   lang: z.string().min(2).max(5),
+  name: z.string().optional(),
   demographics: z.record(z.any()).optional(),
   utm: z.record(z.string()).optional()
 })
@@ -16,12 +16,25 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const validatedData = createLeadSchema.parse(body)
+    
+    const supabase = createClient()
+
+    // Find quiz by slug first
+    const { data: quiz } = await supabase
+      .from('quizzes')
+      .select('id')
+      .eq('slug', validatedData.quizSlug)
+      .single()
+
+    if (!quiz) {
+      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
+    }
 
     // Check if lead already exists for this quiz and email
     const { data: existingLead } = await supabase
-      .from('leads')
+      .from('quiz_leads')
       .select('id')
-      .eq('quiz_id', validatedData.quiz_id)
+      .eq('quiz_id', quiz.id)
       .eq('email', validatedData.email)
       .single()
 
@@ -35,11 +48,11 @@ export async function POST(request: NextRequest) {
 
     // Create new lead
     const { data: lead, error } = await supabase
-      .from('leads')
+      .from('quiz_leads')
       .insert({
-        quiz_id: validatedData.quiz_id,
+        quiz_id: quiz.id,
         email: validatedData.email,
-        name: validatedData.name,
+        name: validatedData.name || null,
         lang: validatedData.lang,
         demographics: validatedData.demographics || {},
         utm: validatedData.utm || {}

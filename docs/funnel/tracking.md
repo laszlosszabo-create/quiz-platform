@@ -2,52 +2,153 @@
 
 ## Overview
 
-A quiz platform minden felhasználói interakciót követ az analitikai elemzéshez és a funnel optimalizáláshoz. Az események a `audit_logs` táblába kerülnek `USER_*` action prefix-szel.
+A quiz platform minden felhasználói interakciót követ az analitikai elemzéshez és a funnel optimalizáláshoz. Az események a `tracking_events` táblába kerülnek strukturált JSON formátumban.
 
-## Event Types (9 db)
+## Event Types (9 db implementálva)
 
 ### 1. `page_view`
 **Trigger**: Minden oldal betöltéskor  
 **Payload**:
 ```typescript
 {
-  quiz_id: string
-  session_id?: string
-  metadata: {
-    url: string
+  event_name: "page_view",
+  data: {
+    quiz_slug: string,
+    page_type: "landing" | "quiz" | "result",
+    lang: string,
+    session_id?: string,
+    url: string,
     user_agent: string
-    timestamp: string
   }
 }
 ```
 
-### 2. `quiz_start` 
+### 2. `cta_click`
+**Trigger**: CTA gomb kattintáskor (landing page)
+**Payload**:
+```typescript
+{
+  event_name: "cta_click", 
+  data: {
+    quiz_slug: string,
+    lang: string,
+    cta_text: string,
+    session_id?: string
+  }
+}
+```
+
+### 3. `quiz_start` 
 **Trigger**: Első kérdés megjelenítésekor  
 **Payload**:
 ```typescript
 {
-  quiz_id: string
-  session_id: string
-  metadata: {
-    url: string
-    user_agent: string
-    timestamp: string
+  event_name: "quiz_start",
+  data: {
+    quiz_slug: string,
+    session_id: string,
+    lang: string,
+    question_count: number
   }
 }
 ```
 
-### 3. `answer_select`
+### 4. `answer_select`
 **Trigger**: Minden válasz kiválasztásakor  
 **Payload**:
 ```typescript
 {
-  quiz_id: string
-  session_id: string
-  question_key: string
-  answer_key: string
-  metadata: {
-    url: string
-    user_agent: string
+  event_name: "answer_select",
+  data: {
+    quiz_slug: string,
+    session_id: string,
+    question_key: string,
+    answer_value: number,
+    question_number: number,
+    lang: string
+  }
+}
+```
+
+### 5. `email_submitted`
+**Trigger**: Email cím megadásakor az email gate-nél
+**Payload**:
+```typescript
+{
+  event_name: "email_submitted",
+  data: {
+    quiz_slug: string,
+    session_id: string,
+    email: string,
+    lead_id: string,
+    lang: string
+  }
+}
+```
+
+### 6. `quiz_complete`
+**Trigger**: Utolsó kérdés beküldésekor
+**Payload**:
+```typescript
+{
+  event_name: "quiz_complete",
+  data: {
+    quiz_slug: string,
+    session_id: string,
+    total_questions: number,
+    completion_time_seconds: number,
+    lang: string
+  }
+}
+```
+
+### 7. `product_view`
+**Trigger**: Eredmény oldal betöltésekor (termék megjelenítés)
+**Payload**:
+```typescript
+{
+  event_name: "product_view",
+  data: {
+    quiz_slug: string,
+    session_id: string,
+    product_id: string,
+    product_name: string,
+    price: number,
+    lang: string
+  }
+}
+```
+
+### 8. `booking_view`
+**Trigger**: Booking link megtekintésekor
+**Payload**:
+```typescript
+{
+  event_name: "booking_view",
+  data: {
+    quiz_slug: string,
+    session_id: string,
+    booking_url: string,
+    lang: string
+  }
+}
+```
+
+### 9. `checkout_start`
+**Trigger**: Checkout gomb kattintáskor (Stripe redirect előtt)
+**Payload**:
+```typescript
+{
+  event_name: "checkout_start",
+  data: {
+    quiz_slug: string,
+    session_id: string,
+    product_id: string,
+    price: number,
+    lang: string
+  }
+}
+```
     timestamp: string
   }
 }

@@ -12,7 +12,7 @@ interface QuizPageProps {
 }
 
 export async function generateMetadata({ params }: QuizPageProps): Promise<Metadata> {
-  const { lang, quizSlug } = params
+  const { lang, quizSlug } = await params
   
   // Get quiz data
   const { data: quiz } = await supabase
@@ -50,8 +50,12 @@ export async function generateMetadata({ params }: QuizPageProps): Promise<Metad
   }
 }
 
-export default async function QuizPage({ params }: QuizPageProps) {
-  const { lang, quizSlug } = params
+export default async function QuizPage({
+  params,
+}: {
+  params: Promise<{ lang: string; quizSlug: string }>
+}) {
+  const { lang, quizSlug } = await params
 
   // Validate language
   const supportedLangs = ['hu', 'en']

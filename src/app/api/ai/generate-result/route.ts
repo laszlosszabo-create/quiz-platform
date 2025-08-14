@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Get session data
     const { data: session, error: sessionError } = await supabase
-      .from('sessions')
+      .from('quiz_sessions')
       .select('*')
       .eq('id', validatedData.session_id)
       .eq('quiz_id', validatedData.quiz_id)
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Get AI prompt for this language
     const { data: aiPrompt } = await supabase
-      .from('quiz_prompts')
+      .from('quiz_ai_prompts')
       .select('*')
       .eq('quiz_id', validatedData.quiz_id)
       .eq('lang', validatedData.lang)
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       }
 
       await supabase
-        .from('sessions')
+        .from('quiz_sessions')
         .update({ result_snapshot: updatedSnapshot })
         .eq('id', validatedData.session_id)
 

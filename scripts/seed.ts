@@ -50,9 +50,9 @@ async function seedDatabase() {
     await createPrompts(quiz.id)
     console.log('✅ AI prompts created (HU + EN)')
     
-    // Step 7: Create product
-    await createProduct(quiz.id)
-    console.log('✅ Product created')
+    // Step 7: Create product (skip for minimal setup)
+    // await createProduct(quiz.id)
+    console.log('⏭️ Product creation skipped (not in minimal setup)')
     
     // Step 8: Summary
     console.log('\n🎉 Seed completed successfully!')
@@ -70,13 +70,26 @@ async function seedDatabase() {
 async function cleanExistingQuiz() {
   console.log('🧹 Cleaning existing quiz data...')
   
-  const { data: existingQuiz } = await supabase
+  // First test if quizzes table exists by doing a simple select
+  console.log('🔍 Testing quizzes table access...')
+  
+  const { data: existingQuizzes, error: accessError } = await supabase
     .from('quizzes')
     .select('id')
     .eq('slug', QUIZ_SLUG)
-    .single()
   
-  if (existingQuiz) {
+  if (accessError) {
+    console.error('❌ Cannot access quizzes table:', accessError)
+    console.log('💡 This suggests the database tables have not been created yet.')
+    console.log('📋 Make sure migrations have been applied to the remote database.')
+    console.log('🔧 Try running: supabase db push')
+    process.exit(1)
+  }
+
+  console.log('✅ Quizzes table accessible!')
+
+  if (existingQuizzes && existingQuizzes.length > 0) {
+    const existingQuiz = existingQuizzes[0]
     // Delete quiz (cascade will handle related data)
     const { error } = await supabase
       .from('quizzes')
@@ -85,6 +98,8 @@ async function cleanExistingQuiz() {
     
     if (error) throw error
     console.log('🗑️ Existing quiz cleaned')
+  } else {
+    console.log('✅ No existing quiz to clean')
   }
 }
 
@@ -417,7 +432,7 @@ async function createPrompts(quizId: string) {
     {
       quiz_id: quizId,
       lang: 'hu',
-      system_prompt: `Te egy tapasztalt klinikai pszichológus vagy, aki ADHD diagnosztikával és kezeléssel foglalkozik. A felhasználó kitöltött egy ADHD tünetek felmérésére szolgáló kérdőívet.
+      ai_prompt: `Te egy tapasztalt klinikai pszichológus vagy, aki ADHD diagnosztikával és kezeléssel foglalkozik. A felhasználó kitöltött egy ADHD tünetek felmérésére szolgáló kérdőívet.
 
 Az eredmények alapján adj személyre szabott, empatikus és szakmailag megalapozott visszajelzést. Hangsúlyozd, hogy ez nem orvosi diagnózis, csak egy kezdeti felmérés.
 
@@ -425,35 +440,21 @@ Használj barátságos, de szakszerű hangnemet. Tartalmazza a válaszod:
 1. Az eredmények rövid összefoglalását
 2. A főbb területeket, ahol tünetek mutatkoznak
 3. Gyakorlati tanácsokat a mindennapi élethez  
-4. Ajánlást szakorvosi konzultációra, ha indokolt`,
-      user_prompt_template: `A felhasználó kitöltötte az ADHD felmérést az alábbi eredményekkel:
+4. Ajánlást szakorvosi konzultációra, ha indokolt
 
-Összpontszám: {{scores.total}}/33
-Kategória: {{scores.category}}
+A felhasználó eredményei: {attention_score} pont figyelmi nehézségek, {hyperactivity_score} pont hiperaktivitás, {impulsivity_score} pont impulzivitás.
 
-Területenkénti pontszámok:
-- Figyelmi nehézségek: {{scores.attention}}/15
-- Hiperaktivitás: {{scores.hyperactivity}}/8
-- Impulzivitás: {{scores.impulsivity}}/10
-
-A legmagasabb pontszámot elért területek: {{scores.top_areas}}
-
-Kérlek, adj személyre szabott visszajelzést ezeknek az eredményeknek az alapján.`,
-      variables: {
-        scores: {
-          total: 'number',
-          category: 'string', 
-          attention: 'number',
-          hyperactivity: 'number',
-          impulsivity: 'number',
-          top_areas: 'array'
-        }
-      }
+Válaszolj HTML formátumban, használj <h3> címeket és <p> bekezdéseket.`,
+      fallback_results: [
+        { score_range: [0, 10], html: '<h3>Alacsony kockázat</h3><p>Az eredmények alapján kevés ADHD tünet mutatkozik. Folytassa jelenlegi életvitelét és forduljon orvoshoz, ha tünetek változnak.</p>' },
+        { score_range: [11, 20], html: '<h3>Közepes kockázat</h3><p>Néhány ADHD tünet jelen van. Érdemes megfigyelni a tüneteket és szakorvosi konzultációt fontolni.</p>' },
+        { score_range: [21, 72], html: '<h3>Magas kockázat</h3><p>Számos ADHD tünet mutatkozik. Javasoljuk szakorvosi vizsgálatot a pontos diagnózis érdekében.</p>' }
+      ]
     },
     {
       quiz_id: quizId,
       lang: 'en',
-      system_prompt: `You are an experienced clinical psychologist specializing in ADHD diagnostics and treatment. The user has completed a questionnaire designed to assess ADHD symptoms.
+      ai_prompt: `You are an experienced clinical psychologist specializing in ADHD diagnostics and treatment. The user has completed a questionnaire designed to assess ADHD symptoms.
 
 Based on the results, provide personalized, empathetic, and professionally grounded feedback. Emphasize that this is not a medical diagnosis, just an initial assessment.
 
@@ -461,35 +462,21 @@ Use a friendly but professional tone. Include in your response:
 1. Brief summary of results
 2. Main areas where symptoms are present
 3. Practical advice for daily life
-4. Recommendation for medical consultation if appropriate`,
-      user_prompt_template: `The user has completed the ADHD assessment with the following results:
+4. Recommendation for medical consultation if appropriate
 
-Total score: {{scores.total}}/33
-Category: {{scores.category}}
+User results: {attention_score} points attention difficulties, {hyperactivity_score} points hyperactivity, {impulsivity_score} points impulsivity.
 
-Area-specific scores:
-- Attention difficulties: {{scores.attention}}/15
-- Hyperactivity: {{scores.hyperactivity}}/8
-- Impulsivity: {{scores.impulsivity}}/10
-
-Highest scoring areas: {{scores.top_areas}}
-
-Please provide personalized feedback based on these results.`,
-      variables: {
-        scores: {
-          total: 'number',
-          category: 'string',
-          attention: 'number', 
-          hyperactivity: 'number',
-          impulsivity: 'number',
-          top_areas: 'array'
-        }
-      }
+Respond in HTML format using <h3> headers and <p> paragraphs.`,
+      fallback_results: [
+        { score_range: [0, 10], html: '<h3>Low Risk</h3><p>Based on the results, few ADHD symptoms are present. Continue your current lifestyle and consult a doctor if symptoms change.</p>' },
+        { score_range: [11, 20], html: '<h3>Moderate Risk</h3><p>Some ADHD symptoms are present. Consider monitoring symptoms and consulting a healthcare professional.</p>' },
+        { score_range: [21, 72], html: '<h3>High Risk</h3><p>Multiple ADHD symptoms are present. We recommend professional medical evaluation for accurate diagnosis.</p>' }
+      ]
     }
   ]
   
   const { error } = await supabase
-    .from('quiz_prompts')
+    .from('quiz_ai_prompts')
     .insert(prompts)
   
   if (error) throw error

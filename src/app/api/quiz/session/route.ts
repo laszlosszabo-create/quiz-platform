@@ -4,33 +4,51 @@ import { supabase } from '@/lib/supabase'
 
 // Validation schemas
 const createSessionSchema = z.object({
-  quiz_id: z.string().uuid(),
-  lang: z.string().min(2).max(5),
-  client_token: z.string().min(1)
+  quizSlug: z.string().min(1),
+  lang: z.string().min(2).max(5)
 })
 
 const updateSessionSchema = z.object({
   session_id: z.string().uuid(),
   answers: z.record(z.any()).optional(),
+  current_question: z.number().optional(),
+  email: z.string().email().optional(),
   state: z.enum(['started', 'completed']).optional()
 })
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Request body received:', body)
     const validatedData = createSessionSchema.parse(body)
+
+    // First, get the quiz by slug
+    const { data: quiz, error: quizError } = await supabase
+      .from('quizzes')
+      .select('id')
+      .eq('slug', validatedData.quizSlug)
+      .single()
+
+    if (quizError || !quiz) {
+      return NextResponse.json(
+        { error: 'Quiz not found' },
+        { status: 404 }
+      )
+    }
+
+    // Generate client token
+    const client_token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
     // Create new session
     const { data: session, error } = await supabase
-      .from('sessions')
+      .from('quiz_sessions')
       .insert({
-        quiz_id: validatedData.quiz_id,
+        quiz_id: quiz.id,
         lang: validatedData.lang,
         state: 'started',
         answers: {},
-        scores: {},
-        result_snapshot: {},
-        client_token: validatedData.client_token
+        current_question: 1,
+        client_token: client_token
       })
       .select()
       .single()
@@ -45,6 +63,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       session_id: session.id,
+      client_token: client_token,
+      quiz_id: quiz.id,
       message: 'Session created successfully'
     })
   } catch (error) {
@@ -81,7 +101,7 @@ export async function PATCH(request: NextRequest) {
 
     // Update session
     const { data: session, error } = await supabase
-      .from('sessions')
+      .from('quiz_sessions')
       .update(updateData)
       .eq('id', validatedData.session_id)
       .select()

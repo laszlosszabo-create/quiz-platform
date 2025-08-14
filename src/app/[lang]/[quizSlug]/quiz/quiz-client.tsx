@@ -49,9 +49,8 @@ export function QuizClient({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          quiz_id: quiz.id,
-          lang,
-          client_token: clientToken
+          quizSlug: quiz.slug,
+          lang
         })
       })
 
