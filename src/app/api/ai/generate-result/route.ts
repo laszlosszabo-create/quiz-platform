@@ -1,0 +1,159 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { supabase } from '@/lib/supabase'
+import OpenAI from 'openai'
+
+// Validation schema
+const generateResultSchema = z.object({
+  session_id: z.string().uuid(),
+  quiz_id: z.string().uuid(),
+  lang: z.string().min(2).max(5)
+})
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const validatedData = generateResultSchema.parse(body)
+
+    // Get session data
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('id', validatedData.session_id)
+      .eq('quiz_id', validatedData.quiz_id)
+      .single()
+
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if AI result already exists
+    const existingSnapshot = session.result_snapshot as any
+    if (existingSnapshot?.ai_result) {
+      return NextResponse.json({
+        ai_result: existingSnapshot.ai_result,
+        cached: true
+      })
+    }
+
+    // Get AI prompt for this language
+    const { data: aiPrompt } = await supabase
+      .from('quiz_prompts')
+      .select('*')
+      .eq('quiz_id', validatedData.quiz_id)
+      .eq('lang', validatedData.lang)
+      .single()
+
+    if (!aiPrompt) {
+      return NextResponse.json(
+        { error: 'AI prompt not configured for this language' },
+        { status: 400 }
+      )
+    }
+
+    // Prepare variables for prompt template
+    const answers = session.answers as Record<string, any> || {}
+    const scores = session.scores as Record<string, any> || {}
+    
+    // Replace variables in user prompt template
+    let userPrompt = aiPrompt.user_prompt_template || 'Analyze the user responses: {{answers}}'
+    userPrompt = userPrompt
+      .replace('{{answers}}', JSON.stringify(answers))
+      .replace('{{scores}}', JSON.stringify(scores))
+      .replace('{{lang}}', validatedData.lang)
+
+    try {
+      // Generate AI result with timeout
+      const completion = await Promise.race([
+        openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: aiPrompt.system_prompt || 'You are a helpful assistant analyzing quiz results.'
+            },
+            {
+              role: 'user',
+              content: userPrompt
+            }
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('AI timeout')), 10000)
+        )
+      ])
+
+      const aiResult = completion.choices[0]?.message?.content?.trim()
+
+      if (!aiResult) {
+        throw new Error('Empty AI response')
+      }
+
+      // Save AI result to session
+      const updatedSnapshot = {
+        ...existingSnapshot,
+        ai_result: aiResult,
+        generated_at: new Date().toISOString()
+      }
+
+      await supabase
+        .from('sessions')
+        .update({ result_snapshot: updatedSnapshot })
+        .eq('id', validatedData.session_id)
+
+      return NextResponse.json({
+        ai_result: aiResult,
+        cached: false
+      })
+
+    } catch (aiError) {
+      console.error('AI generation error:', aiError)
+      
+      // Log AI error for monitoring
+      await supabase
+        .from('audit_logs')
+        .insert({
+          action: 'AI_ERROR',
+          entity: 'ai_result_generation',
+          entity_id: validatedData.session_id,
+          diff: {
+            error: aiError instanceof Error ? aiError.message : 'Unknown AI error',
+            session_id: validatedData.session_id,
+            quiz_id: validatedData.quiz_id,
+            lang: validatedData.lang
+          }
+        })
+
+      // Return error - client will fall back to static result
+      return NextResponse.json(
+        { error: 'AI result generation failed' },
+        { status: 500 }
+      )
+    }
+
+  } catch (error) {
+    console.error('AI API error:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.errors },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

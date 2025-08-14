@@ -7,14 +7,79 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 ## [Unreleased]
 
 ### 🎯 In Progress
-- Seed script és duplikációs funkció fejlesztés
+- Module 4: Stripe + Email implementation
 
 ### 📋 Planned Modules
-2. [Seed + Duplikáció] - Minta adatok és quiz duplikálás  
-3. [Publikus Funnel] - Felhasználói oldal és tracking
 4. [Stripe + E-mail] - Fizetés és kommunikáció
 5. [Admin Panel] - Tartalomkezelő felület
 6. [Guardrails + i18n] - Biztonság és nyelvesítés
+
+---
+
+## [0.3.0] - 2025-08-14
+
+### ✅ Added - Module 3: Public Funnel
+- **Landing Page** (`/[lang]/[quizSlug]`):
+  - Server-side rendering with quiz translations
+  - Multi-language support (HU/EN) with fallbacks
+  - Theme integration (logo, hero, colors)
+  - CTA and page view tracking
+  - Social proof sections from DB translations
+
+- **Quiz Page** (`/[lang]/[quizSlug]/quiz`):
+  - Step-by-step question renderer with progress bar
+  - Support for single/multi/scale question types
+  - Session management with client tokens
+  - Autosave every 2 questions to sessions table
+  - Email gate with configurable positioning
+  - Real-time answer tracking and validation
+
+- **Result Page** (`/[lang]/[quizSlug]/result`):
+  - Score calculation from quiz answers
+  - AI result generation with OpenAI integration
+  - Fallback to static results when AI fails
+  - Product section with Stripe checkout integration
+  - Booking section with Calendly integration
+  - Product and booking view tracking
+
+- **Session Management**:
+  - Client token lifecycle with localStorage
+  - 24-hour expiration with auto-refresh
+  - Anonymous tracking until email submission
+  - GDPR compliant data handling
+
+- **API Endpoints**:
+  - `/api/quiz/session` - Session create/update
+  - `/api/quiz/lead` - Lead capture from email gate
+  - `/api/ai/generate-result` - OpenAI result generation
+  - `/api/stripe/checkout` - Stripe payment initiation
+  - `/api/tracking` - Event tracking pipeline
+
+- **Tracking System**:
+  - 9 event types: page_view, cta_click, quiz_start, answer_select, quiz_complete, email_submitted, product_view, booking_view, checkout_start
+  - Events stored in audit_logs table
+  - Silent error handling to preserve UX
+  - Async tracking to avoid blocking
+
+- **Fallback Mechanisms**:
+  - AI failure → static scoring results
+  - Missing translations → default_lang fallback
+  - Missing assets → placeholder/theme defaults
+  - Network errors → graceful degradation
+
+- **Documentation**:
+  - Complete tracking event documentation
+  - Session token lifecycle guide
+  - API endpoint specifications
+  - Acceptance criteria checklist
+
+### 🔧 Technical Details
+- TypeScript interfaces for all data structures
+- Zod validation on all API endpoints
+- Multi-language AI prompts per quiz
+- Placeholder assets (logo, hero image)
+- Error boundaries and loading states
+- Optimistic UI updates for better UX
 
 ---
 
