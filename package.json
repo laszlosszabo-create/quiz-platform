@@ -10,26 +10,26 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
     "next": "15.0.0",
+    "openai": "^4.67.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@supabase/supabase-js": "^2.45.4",
-    "stripe": "^16.12.0",
     "resend": "^4.0.0",
-    "zod": "^3.23.8",
-    "openai": "^4.67.1"
+    "stripe": "^16.12.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "typescript": "^5.6.2",
+    "@playwright/test": "^1.48.0",
     "@types/node": "^22.7.5",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.13",
     "eslint": "^8.57.1",
     "eslint-config-next": "15.0.0",
-    "tsx": "^4.19.1",
-    "@playwright/test": "^1.48.0"
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "tsx": "^4.20.4",
+    "typescript": "^5.6.2"
   }
 }
