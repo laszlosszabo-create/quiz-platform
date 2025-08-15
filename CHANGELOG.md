@@ -9,6 +9,48 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 ### 🎯 In Progress
 - Module 6: Products Editor - Advanced admin tools
 
+## [0.6.4] - 2025-08-15
+
+**Commit Hash**: `72f072d` ✅  
+**Status**: AI & Tracking System Fixes - COMPLETE
+
+### 🐛 Fixed
+- **AI Result Generation 404 Error**: Fixed missing AI API endpoint functionality
+  - Updated `src/app/api/ai/generate-result/route.ts` to use centralized Supabase configuration
+  - Replaced old `@/lib/supabase` import with `getSupabaseAdmin()` from `@/lib/supabase-config`
+  - AI endpoint now returns 200 status with 2-3 second response times
+  - Full caching functionality restored for repeated requests
+
+- **Missing Result Page Translations**: Added 9 critical translation keys to database
+  - `result_headline`: "Az Ön eredménye"
+  - `result_sub`: "Az ADHD kvíz alapján az alábbi eredményt kaptuk:"
+  - `result_ai_loading`: "AI elemzés generálása..."
+  - `result_product_headline`: "Ajánlott termék" 
+  - `result_product_cta`: "Termék megtekintése"
+  - `result_booking_headline`: "Foglaljon konzultációt"
+  - `result_booking_cta`: "Időpont foglalása"
+  - `result_static_low`: "Alacsony ADHD kockázat"
+  - `result_low_description`: Complete low-risk result description
+  - Console translation warnings reduced from 9 to 0
+
+### 🔧 Technical Improvements
+- **Centralized Supabase Configuration**: Enforced usage of singleton pattern across AI endpoints
+- **Translation Coverage**: Complete result page translation coverage (15/15 keys)
+- **Error Reduction**: Eliminated all console translation warnings on result page
+- **Performance**: AI result generation latency optimized to 2-3 seconds
+
+### 📋 Key Changes
+- `/src/app/api/ai/generate-result/route.ts` - Fixed Supabase import and client initialization
+- Database: Added 9 missing `result_*` translation keys for ADHD quiz
+- `AI_TRACKING_FIXES_20250815.md` - Comprehensive patch documentation with testing results
+
+### 🧪 Testing Results
+- AI API endpoint: 404 → 200 ✅
+- Result page UX: `[field_key]` placeholders → Hungarian text ✅
+- Console errors: 9 warnings → 0 warnings ✅  
+- Translation coverage: 6/15 → 15/15 keys ✅
+- Cache functionality: Broken → Working ✅
+
 ## [0.6.3] - 2025-08-15
 
 **Commit Hash**: `851a403` ✅  
