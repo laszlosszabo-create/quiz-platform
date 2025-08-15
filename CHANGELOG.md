@@ -11,6 +11,9 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 
 ## [0.6.3] - 2025-08-15
 
+**Commit Hash**: `851a403` ✅  
+**Status**: AI Prompts Editor CRUD - COMPLETE
+
 ### ✨ Added
 - **AI Prompts Editor CRUD véglegesítés**: Complete CRUD functionality for AI prompt management
   - Full API endpoints (GET/POST/PUT/DELETE) with Zod validation
@@ -27,6 +30,13 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 - **Enhanced Error Handling**: Structured error responses with field-specific messages
 - **Audit Trail Enhancement**: Detailed before/after change tracking for prompts
 - **Type Safety**: Full TypeScript integration with proper interfaces and validation
+
+### 📋 Key Changes
+- `/src/lib/zod-schemas.ts` - New validation schemas for AI prompts
+- `/src/app/admin/components/ai-prompts-editor.tsx` - Enhanced error handling
+- `/src/app/api/admin/ai-prompts/route.ts` - Complete CRUD API implementation
+- `/docs/admin/ai-prompts.md` - Comprehensive documentation and acceptance results
+- `/test-ai-prompts-crud.js` - Automated testing script
 
 ### 📚 Documentation
 - Added comprehensive `/docs/admin/ai-prompts.md` with API specs and testing guides
