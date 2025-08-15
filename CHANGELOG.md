@@ -7,7 +7,31 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 ## [Unreleased]
 
 ### 🎯 In Progress
-- Module 6: Translation Management - Advanced features and enhancements
+- Module 6: Products Editor - Advanced admin tools
+
+## [0.6.3] - 2025-08-15
+
+### ✨ Added
+- **AI Prompts Editor CRUD véglegesítés**: Complete CRUD functionality for AI prompt management
+  - Full API endpoints (GET/POST/PUT/DELETE) with Zod validation
+  - Role-based authorization (owner/editor only for modifications)
+  - Required template variables validation (`{{scores}}`, `{{top_category}}`, `{{name}}`)
+  - Multi-language support (HU/EN) with isolated prompt management
+  - Real-time error handling with user-friendly validation messages
+  - Complete audit logging with before/after diff tracking
+  - OpenAI test endpoint integration for prompt validation
+  - Comprehensive documentation and acceptance testing
+
+### 🔧 Technical Improvements  
+- **Zod Schema Integration**: Comprehensive input validation across all CRUD operations
+- **Enhanced Error Handling**: Structured error responses with field-specific messages
+- **Audit Trail Enhancement**: Detailed before/after change tracking for prompts
+- **Type Safety**: Full TypeScript integration with proper interfaces and validation
+
+### 📚 Documentation
+- Added comprehensive `/docs/admin/ai-prompts.md` with API specs and testing guides
+- Updated troubleshooting documentation for common AI prompts issues
+- Enhanced acceptance criteria documentation with validation checklists
 
 ### 📋 Planned Modules
 4. [Stripe + E-mail] - Fizetés és kommunikáció

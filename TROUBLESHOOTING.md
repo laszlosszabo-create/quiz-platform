@@ -1,3 +1,85 @@
+# Troubleshooting Guide
+
+## AI Prompts Editor
+
+### "Not a module" TypeScript Error
+
+**Hiba:**
+```
+File '/Users/.../src/app/api/admin/ai-prompts/route.ts' is not a module.
+No HTTP methods exported in route.ts
+```
+
+**Oka:**
+- TypeScript compilation error preventing Next.js from recognizing exported HTTP methods
+- Szintaktikai hiba vagy hiányzó import/export statements
+- Next.js cache corruption
+
+**Megoldás:**
+1. **TypeScript ellenőrzés:**
+   ```bash
+   npx tsc --noEmit
+   ```
+
+2. **Next.js cache törlése:**
+   ```bash
+   rm -rf .next
+   npm run dev
+   ```
+
+3. **Route fájl ellenőrzése:**
+   ```typescript
+   // Győződj meg róla, hogy minden HTTP method properly exportálva van
+   export async function GET(request: NextRequest) { /* ... */ }
+   export async function POST(request: NextRequest) { /* ... */ }
+   export async function PUT(request: NextRequest) { /* ... */ }
+   export async function DELETE(request: NextRequest) { /* ... */ }
+   ```
+
+### Zod Validation Errors in UI
+
+**Hiba:**
+Validation hibák nem jelennek meg user-friendly módon az admin UI-ban.
+
+**Megoldás:**
+```typescript
+// src/app/admin/components/ai-prompts-editor.tsx
+const errorData = await response.json()
+
+// Handle Zod validation errors
+if (errorData.details && Array.isArray(errorData.details)) {
+  const validationMessages = errorData.details.map((detail: any) => 
+    `${detail.path?.join('.')}: ${detail.message}`
+  ).join(', ')
+  setError(`Validation Error: ${validationMessages}`)
+} else {
+  setError(errorData.error || 'Failed to save AI prompt')
+}
+```
+
+### Schema Cache Issues
+
+**Hiba:**
+Database schema changes nem frissülnek a TypeScript types-ban.
+
+**Megoldás:**
+```bash
+# Regenerate database types
+npm run db:types
+
+# Clear Next.js and TypeScript cache
+rm -rf .next
+rm tsconfig.tsbuildinfo
+npm run dev
+```
+
+**Releváns fájlok:**
+- `/src/app/api/admin/ai-prompts/route.ts` - API endpoint implementations
+- `/src/lib/zod-schemas.ts` - Validation schemas
+- `/src/app/admin/components/ai-prompts-editor.tsx` - UI error handling
+
+---
+
 ## OpenAI teszt végpont (admin AI Prompt fül)
 
 **Probléma:** Szükség volt egy szerver oldali végpontra, amely lehetővé teszi az admin felületen az AI promptok valós OpenAI API-val történő tesztelését.

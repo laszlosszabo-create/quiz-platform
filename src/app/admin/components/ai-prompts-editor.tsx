@@ -235,7 +235,18 @@ Please provide personalized feedback based on these results. Be positive and con
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save AI prompt')
+        const errorData = await response.json()
+        
+        // Handle Zod validation errors
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const validationMessages = errorData.details.map((detail: any) => 
+            `${detail.path?.join('.')}: ${detail.message}`
+          ).join(', ')
+          setError(`Validation Error: ${validationMessages}`)
+        } else {
+          setError(errorData.error || 'Failed to save AI prompt')
+        }
+        return
       }
 
       const result = await response.json()
@@ -275,7 +286,18 @@ Please provide personalized feedback based on these results. Be positive and con
       const response = await fetch(url, { method: 'DELETE' })
 
       if (!response.ok) {
-        throw new Error('Failed to delete AI prompt')
+        const errorData = await response.json()
+        
+        // Handle Zod validation errors
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const validationMessages = errorData.details.map((detail: any) => 
+            `${detail.path?.join('.')}: ${detail.message}`
+          ).join(', ')
+          setError(`Validation Error: ${validationMessages}`)
+        } else {
+          setError(errorData.error || 'Failed to delete AI prompt')
+        }
+        return
       }
 
       // Optionally create audit log entry client-side if server doesn't
