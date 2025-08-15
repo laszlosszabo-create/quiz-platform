@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get AI prompt for this language
-    const { data: aiPrompt } = await supabase
+  const { data: aiPrompt } = await supabase
       .from('quiz_ai_prompts')
       .select('*')
       .eq('quiz_id', validatedData.quiz_id)
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const scores = session.scores as Record<string, any> || {}
     
     // Replace variables in user prompt template
-    let userPrompt = aiPrompt.user_prompt_template || 'Analyze the user responses: {{answers}}'
+  let userPrompt = aiPrompt.user_prompt_template || aiPrompt.ai_prompt || 'Analyze the user responses: {{answers}}'
     userPrompt = userPrompt
       .replace('{{answers}}', JSON.stringify(answers))
       .replace('{{scores}}', JSON.stringify(scores))

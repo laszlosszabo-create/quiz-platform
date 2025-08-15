@@ -159,7 +159,7 @@ export interface Database {
         Insert: Omit<QuizScoringRule, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<QuizScoringRule, 'id' | 'created_at' | 'updated_at'>>
       }
-      quiz_prompts: {
+      quiz_ai_prompts: {
         Row: QuizPrompt
         Insert: Omit<QuizPrompt, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<QuizPrompt, 'id' | 'created_at' | 'updated_at'>>

@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import type { Database } from '@/types/database'
+import { getSupabaseClient } from '@/lib/supabase-config'
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('')
@@ -12,10 +11,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState('')
   
   const router = useRouter()
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = getSupabaseClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,13 +19,20 @@ export default function AdminLoginPage() {
     setError('')
 
     try {
+      console.log('Login attempt:', { email, password: password ? '***' : 'empty' })
+      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+      console.log('Anon Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      
       // Sign in with Supabase Auth
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
+      console.log('Auth response:', { data: data?.user?.email, error: authError })
+
       if (authError) {
+        console.error('Auth error details:', authError)
         setError(authError.message)
         return
       }

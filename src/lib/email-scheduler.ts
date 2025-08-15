@@ -1,17 +1,8 @@
 // Email scheduling system for Day 2 and Day 5 follow-up emails
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 
-// Create admin Supabase client
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+// Get admin Supabase client
+const supabaseAdmin = getSupabaseAdmin()
 
 export interface ScheduledEmail {
   lead_id: string

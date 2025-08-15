@@ -1,17 +1,8 @@
 // Email template system with i18n support and variable substitution
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 
-// Create admin client for template operations
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+// Get admin client for template operations
+const supabaseAdmin = getSupabaseAdmin()
 
 export interface EmailTemplate {
   template_key: string

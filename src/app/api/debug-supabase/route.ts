@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseInfo, getSupabaseAdmin } from '@/lib/supabase-config'
-import { createClient } from '@supabase/supabase-js'
 
 export async function GET() {
   const results: any = {
@@ -26,37 +25,19 @@ export async function GET() {
       }
     }
 
-    // 2. Connection test with header inspection
-    // Create a fresh admin client instance to avoid caching issues
-    const config = getSupabaseInfo()
+    // 2. Connection test with centralized admin client
     console.log('🔍 Debug config:', {
-      url: config.url,
+      url: info.url,
       serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20) + '...',
-      isLocal: config.isLocal
+      isLocal: info.isLocal
     })
     
-    const freshAdmin = createClient<any>(
-      config.url,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        },
-        global: {
-          headers: {
-            'User-Agent': 'quiz-platform/debug'
-          }
-        }
-      }
-    )
+    const adminClient = getSupabaseAdmin()
     
-    console.log('🔍 Fresh admin client created')
-    
-    // Patch the fetch to inspect what headers are being sent
-    const originalFetch = global.fetch
-    let requestHeaders: any = {}
+    // Store request details for debugging
     let requestUrl = ''
+    let requestHeaders: any = {}
+    const originalFetch = global.fetch
     
     global.fetch = async (input: any, init?: any) => {
       requestUrl = typeof input === 'string' ? input : input.url
@@ -66,7 +47,7 @@ export async function GET() {
     }
     
     // Test basic connection with a simple query
-    const { data: healthCheck, error: healthError } = await freshAdmin
+    const { data: healthCheck, error: healthError } = await adminClient
       .from('quizzes')
       .select('count', { count: 'exact', head: true })
     
@@ -89,7 +70,7 @@ export async function GET() {
     }
 
     // 3. RLS bypass test - try to access with service role
-    const { data: rlsBypass, error: rlsError } = await freshAdmin
+    const { data: rlsBypass, error: rlsError } = await adminClient
       .from('quizzes')
       .select('id, slug, status')
       .limit(5)
@@ -103,7 +84,7 @@ export async function GET() {
     }
 
     // 4. Specific quiz test
-    const { data: quizTest, error: quizError } = await freshAdmin
+    const { data: quizTest, error: quizError } = await adminClient
       .from('quizzes')
       .select('id, slug, status')
       .eq('slug', 'adhd-quick-check')

@@ -5,10 +5,10 @@ import { getTranslations } from '@/lib/translations'
 import { LandingPageClient } from './landing-page-client'
 
 interface LandingPageProps {
-  params: {
+  params: Promise<{
     lang: string
     quizSlug: string
-  }
+  }>
 }
 
 // Required translation keys for landing page
@@ -73,9 +73,10 @@ export default async function LandingPage({
   searchParams,
 }: {
   params: Promise<{ lang: string; quizSlug: string }>
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const { lang, quizSlug } = await params
+  const resolvedSearchParams = await searchParams
 
   // Validate language
   const supportedLangs = ['hu', 'en']

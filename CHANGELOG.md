@@ -1,5 +1,16 @@
 # Quiz Platform - Változásnapló
 
+## [Docs] 2025-08-15 – AI Prompts Canonicalization (Option 1)
+
+### 📚 Documentation
+- Added `docs/admin/ai-prompts-canonicalization.md` detailing the canonical single-column `ai_prompt` approach, API contract, types, UI, and migration path.
+- Updated `docs/admin/quiz-editor-issues.md` with Option 1 approval and next steps.
+
+### 🔧 Validation
+- Adjusted `src/lib/zod-schemas.ts` to validate `ai_prompt` and required variables; PUT accepts optional `id` to support conflict-upsert behavior.
+
+Notes: Implementation will follow in a subsequent commit after docs-first checkpoint.
+
 Minden jelentős változás dokumentálva ebben a fájlban.
 
 A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján készült.

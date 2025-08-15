@@ -3,14 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import type { AdminUser } from '@/lib/admin-auth'
-import type { Database } from '@/types/database'
-
-interface AdminNavigationProps {
-  adminUser: AdminUser
-}
+import { getSupabaseClient } from '@/lib/supabase-config'
+import { useAdminUser } from './admin-auth-wrapper'
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: '🏠' },
@@ -25,15 +20,18 @@ const navigation = [
   { name: 'Audit Log', href: '/admin/audit', icon: '📋' },
 ]
 
-export default function AdminNavigation({ adminUser }: AdminNavigationProps) {
+export default function AdminNavigation() {
+  const adminUser = useAdminUser()
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+
+  // Don't render if no admin user
+  if (!adminUser) {
+    return null
+  }
   
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = getSupabaseClient()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()

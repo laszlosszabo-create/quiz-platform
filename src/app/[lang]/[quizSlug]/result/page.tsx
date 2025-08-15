@@ -109,7 +109,7 @@ export default async function ResultPage({ params, searchParams }: ResultPagePro
 
   // Get AI prompts
   const { data: aiPrompts } = await supabase
-    .from('quiz_prompts')
+    .from('quiz_ai_prompts')
     .select('*')
     .eq('quiz_id', quiz.id)
     .eq('lang', lang)

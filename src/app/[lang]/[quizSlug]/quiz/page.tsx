@@ -5,10 +5,10 @@ import { getTranslations } from '@/lib/translations'
 import { QuizClient } from './quiz-client'
 
 interface QuizPageProps {
-  params: {
+  params: Promise<{
     lang: string
     quizSlug: string
-  }
+  }>
 }
 
 export async function generateMetadata({ params }: QuizPageProps): Promise<Metadata> {

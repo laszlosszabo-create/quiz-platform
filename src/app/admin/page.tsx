@@ -1,49 +1,44 @@
-import { requireAdmin } from '@/lib/admin-auth'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { getSupabaseClient } from '@/lib/supabase-config'
+import { useAdminUser } from './components/admin-auth-wrapper'
 import type { Database } from '@/types/database'
 
 async function getQuizStats() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
-
   try {
-    const [
-      { count: totalQuizzes },
-      { count: activeQuizzes },
-      { count: totalSessions },
-      { count: totalOrders },
-    ] = await Promise.all([
-      supabase.from('quizzes').select('id', { count: 'exact', head: true }),
-      supabase.from('quizzes').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('quiz_sessions').select('id', { count: 'exact', head: true }),
-      supabase.from('orders').select('id', { count: 'exact', head: true }),
-    ])
+    const supabase = getSupabaseClient()
+    
+    // Get quiz count
+    const { count: quizCount } = await supabase
+      .from('quizzes')
+      .select('*', { count: 'exact', head: true })
+
+    // Get session count  
+    const { count: sessionCount } = await supabase
+      .from('quiz_sessions')
+      .select('*', { count: 'exact', head: true })
+
+    // Get completed session count
+    const { count: completedCount } = await supabase
+      .from('quiz_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'completed')
 
     return {
-      totalQuizzes: totalQuizzes || 0,
-      activeQuizzes: activeQuizzes || 0,
-      totalSessions: totalSessions || 0,
-      totalOrders: totalOrders || 0,
+      totalQuizzes: quizCount || 0,
+      totalSessions: sessionCount || 0,
+      completedSessions: completedCount || 0,
+      completionRate: sessionCount ? Math.round((completedCount || 0) / sessionCount * 100) : 0
     }
   } catch (error) {
-    console.error('Error fetching stats:', error)
+    console.error('Error fetching quiz stats:', error)
     return {
       totalQuizzes: 0,
-      activeQuizzes: 0,
       totalSessions: 0,
-      totalOrders: 0,
+      completedSessions: 0,
+      completionRate: 0
     }
   }
 }
@@ -55,9 +50,42 @@ const quickActions = [
   { name: 'Riportok Megtekintése', href: '/admin/reports', icon: '📊', color: 'bg-orange-500' },
 ]
 
-export default async function AdminDashboard() {
-  const adminUser = await requireAdmin('viewer')
-  const stats = await getQuizStats()
+export default function AdminDashboard() {
+  const adminUser = useAdminUser()
+  const [stats, setStats] = useState({
+    totalQuizzes: 0,
+    totalSessions: 0,
+    completedSessions: 0,
+    completionRate: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const data = await getQuizStats()
+        setStats(data)
+      } catch (error) {
+        console.error('Error loading stats:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadStats()
+  }, [])
+
+  if (!adminUser) {
+    return <div>Loading...</div>
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -105,7 +133,7 @@ export default async function AdminDashboard() {
                     Aktív Quiz-ek
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {stats.activeQuizzes}
+                    {stats.totalQuizzes}
                   </dd>
                 </dl>
               </div>
@@ -145,7 +173,7 @@ export default async function AdminDashboard() {
                     Rendelések
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {stats.totalOrders}
+                    {stats.totalSessions}
                   </dd>
                 </dl>
               </div>

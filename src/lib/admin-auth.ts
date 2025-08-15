@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import type { Database } from '@/types/database'
 
@@ -15,17 +16,37 @@ export interface AdminUser {
 
 export async function getAdminUser(): Promise<AdminUser | null> {
   const cookieStore = await cookies()
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
+  const hdrs = await headers()
+
+  // Optional: support Authorization: Bearer <access_token> for server-to-server calls
+  const authHeader = hdrs.get('authorization') || hdrs.get('Authorization')
+  const bearer = authHeader?.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : null
+
+  let supabase: ReturnType<typeof createServerClient<Database>> | ReturnType<typeof createClient<Database>>
+
+  if (bearer) {
+    // Fallback: token-based client (no cookies required)
+    supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${bearer}` } } }
+    )
+  } else {
+    // Default: cookie-based SSR client
+    supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
         },
-      },
-    }
-  )
+      }
+    )
+  }
   
   try {
     // Get current authenticated user

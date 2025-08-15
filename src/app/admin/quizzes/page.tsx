@@ -1,46 +1,39 @@
-import { requireAdmin } from '@/lib/admin-auth'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import QuizTable from './components/quiz-table'
+import QuizTable from './components/quiz-table-simple'
+import { getSupabaseClient } from '@/lib/supabase-config'
+import { useAdminUser } from '../components/admin-auth-wrapper'
 import type { Database } from '@/types/database'
 
 type Quiz = {
   id: string
   slug: string
-  status: 'draft' | 'active' | 'archived'
-  default_lang: string
-  feature_flags: Record<string, any>
-  theme: Record<string, any>
-  created_at: string
-  updated_at: string
-  translations?: Record<string, Record<string, string>>
+  title: string
+  description?: string
+  language: string
+  isActive: boolean
+  isPremium: boolean
+  createdAt: string
+  funnelStep?: number
+  questionCount: number
 }
 
 async function getQuizzes() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
-
   try {
+    const supabase = getSupabaseClient()
+    
     const { data: quizzes, error } = await supabase
       .from('quizzes')
       .select(`
-        *,
-        quiz_translations!inner (
-          lang,
-          field_key,
-          value
-        )
+        id,
+        slug,
+        status,
+        default_lang,
+        feature_flags,
+        theme,
+        created_at
       `)
       .order('created_at', { ascending: false })
 
@@ -49,48 +42,56 @@ async function getQuizzes() {
       return []
     }
 
-    // Group translations by quiz
-    const quizzesWithTranslations = quizzes?.reduce((acc: Quiz[], item: any) => {
-      const existingQuiz = acc.find((q: Quiz) => q.id === item.id)
-      
-      if (existingQuiz) {
-        if (!existingQuiz.translations) existingQuiz.translations = {}
-        if (!existingQuiz.translations[item.quiz_translations.lang]) {
-          existingQuiz.translations[item.quiz_translations.lang] = {}
-        }
-        existingQuiz.translations[item.quiz_translations.lang][item.quiz_translations.field_key] = item.quiz_translations.value
-      } else {
-        const quiz = {
-          id: item.id,
-          slug: item.slug,
-          status: item.status,
-          default_lang: item.default_lang,
-          feature_flags: item.feature_flags,
-          theme: item.theme,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          translations: {
-            [item.quiz_translations.lang]: {
-              [item.quiz_translations.field_key]: item.quiz_translations.value
-            }
-          }
-        }
-        acc.push(quiz)
-      }
-      
-      return acc
-    }, [] as Quiz[]) || []
-
-    return quizzesWithTranslations
+    // Map the database structure to our component structure
+    return quizzes.map(quiz => ({
+      id: quiz.id,
+      slug: quiz.slug,
+      title: quiz.slug.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), // Generate title from slug
+      description: `${quiz.slug} quiz`, // Generate basic description
+      language: quiz.default_lang || 'hu',
+      isActive: quiz.status === 'active',
+      isPremium: false, // Default for now
+      createdAt: quiz.created_at,
+      funnelStep: 1, // Default step
+      questionCount: 0 // TODO: Add questions count query later
+    }))
   } catch (error) {
     console.error('Error fetching quizzes:', error)
     return []
   }
 }
 
-export default async function QuizzesPage() {
-  const adminUser = await requireAdmin('viewer')
-  const quizzes = await getQuizzes()
+export default function QuizzesPage() {
+  const adminUser = useAdminUser()
+  const [quizzes, setQuizzes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadQuizzes() {
+      try {
+        const data = await getQuizzes()
+        setQuizzes(data)
+      } catch (error) {
+        console.error('Error loading quizzes:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadQuizzes()
+  }, [])
+
+  if (!adminUser) {
+    return <div>Loading...</div>
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -121,19 +122,19 @@ export default async function QuizzesPage() {
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="text-sm font-medium text-gray-500">Aktív</div>
           <div className="text-2xl font-bold text-green-600">
-            {quizzes.filter((q: Quiz) => q.status === 'active').length}
+            {quizzes.filter(q => q.isActive).length}
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="text-sm font-medium text-gray-500">Tervezet</div>
           <div className="text-2xl font-bold text-yellow-600">
-            {quizzes.filter((q: Quiz) => q.status === 'draft').length}
+            {quizzes.filter(q => !q.isActive).length}
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="text-sm font-medium text-gray-500">Archivált</div>
           <div className="text-2xl font-bold text-gray-600">
-            {quizzes.filter((q: Quiz) => q.status === 'archived').length}
+            {quizzes.filter(q => q.isPremium).length}
           </div>
         </div>
       </div>

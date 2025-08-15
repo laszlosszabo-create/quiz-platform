@@ -1,22 +1,13 @@
 // Email delivery service using Resend API
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 import { getEmailTemplate, renderTemplate, validateTemplateVariables, EmailVariables } from './email-templates'
 
 // Initialize Resend client
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
-// Create admin Supabase client
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+// Get admin Supabase client
+const supabaseAdmin = getSupabaseAdmin()
 
 export interface EmailEvent {
   id: string

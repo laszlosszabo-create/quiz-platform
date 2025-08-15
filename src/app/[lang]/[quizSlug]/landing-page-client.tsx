@@ -104,7 +104,7 @@ export function LandingPageClient({
               
               return (
                 <div key={num} className="bg-gray-50 p-6 rounded-lg">
-                  <p className="text-gray-700 italic">"{socialProofText}"</p>
+                  <p className="text-gray-700 italic">&quot;{socialProofText}&quot;</p>
                 </div>
               )
             })}

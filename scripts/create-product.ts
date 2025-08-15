@@ -1,9 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = "https://gkmeqvuahoyuxexoohmy.supabase.co"
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqcHhrYmpzdGJ4Y21seXl4ZXl1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDQ3Mjg4NywiZXhwIjoyMDcwMDQ4ODg3fQ.a0pOoFNst2NDvBu5O21yf8mITx_1KbaFbYLJSV1GX_c"
+import { getSupabaseAdmin } from '../src/lib/supabase-config'
 
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = getSupabaseAdmin()
 
 async function createProduct() {
   const { data, error } = await supabase

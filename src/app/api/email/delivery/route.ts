@@ -34,11 +34,8 @@ export async function POST(request: NextRequest) {
         
       case 'stats':
         // Get email queue statistics
-        const { createClient } = await import('@supabase/supabase-js')
-        const supabase = createClient(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
+        const { getSupabaseAdmin } = await import('@/lib/supabase-config')
+        const supabase = getSupabaseAdmin()
         
         const [queuedResult, sentResult, failedResult] = await Promise.all([
           supabase.from('email_events').select('count').eq('status', 'queued'),
@@ -77,11 +74,8 @@ export async function POST(request: NextRequest) {
 // GET endpoint for quick stats
 export async function GET() {
   try {
-    const { createClient } = await import('@supabase/supabase-js')
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const { getSupabaseAdmin } = await import('@/lib/supabase-config')
+    const supabase = getSupabaseAdmin()
     
     const { data: events, error } = await supabase
       .from('email_events')
