@@ -1,5 +1,45 @@
 # Troubleshooting Guide
 
+## Dev Server / Port Conflicts
+
+### Dev Server Won't Start or Respond
+
+**Hiba:**
+```
+Server running but curl returns "HTTP Status: 000" or connection refused
+Dev server appears to start but endpoints not accessible
+```
+
+**Gyors Megoldások:**
+1. **Clean Restart:**
+   ```bash
+   pkill -f "next dev"
+   rm -rf .next
+   npm run dev
+   ```
+
+2. **Port Check:**
+   ```bash
+   lsof -i :3000  # Check what's using port 3000
+   ```
+
+3. **Browser vs curl:**
+   - If curl fails but browser works, use browser for testing
+   - macOS sometimes has curl/localhost resolution issues
+   - Use VS Code Simple Browser: http://localhost:3000
+
+4. **Cache Issues:**
+   ```bash
+   rm -rf .next
+   rm tsconfig.tsbuildinfo
+   npm run dev
+   ```
+
+**Megelőzés:**
+- Always use clean restart before important testing
+- Check port availability before starting
+- Use browser testing as fallback when curl fails
+
 ## AI Prompts Editor
 
 ### "Not a module" TypeScript Error
