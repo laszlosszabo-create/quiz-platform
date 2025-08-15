@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 import OpenAI from 'openai'
 
 // Validation schema
@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const validatedData = generateResultSchema.parse(body)
+
+    // Get Supabase admin client
+    const supabase = getSupabaseAdmin()
 
     // Get session data
     const { data: session, error: sessionError } = await supabase

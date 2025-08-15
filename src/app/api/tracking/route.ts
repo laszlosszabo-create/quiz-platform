@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 
 // Event validation schemas
 const baseEventSchema = z.object({
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
     const validatedEvent = trackingEventSchema.parse(body)
 
     // Create tracking record in audit_logs table
+    const supabase = getSupabaseAdmin()
     const { error } = await supabase
       .from('audit_logs')
       .insert({

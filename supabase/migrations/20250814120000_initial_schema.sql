@@ -125,8 +125,8 @@ CREATE TABLE leads (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. SESSIONS TABLE
-CREATE TABLE sessions (
+-- 7. QUIZ_SESSIONS TABLE
+CREATE TABLE quiz_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     quiz_id UUID NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
     lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
@@ -213,7 +213,7 @@ CREATE UNIQUE INDEX idx_orders_stripe_payment_intent ON orders(stripe_payment_in
 CREATE INDEX idx_quiz_translations_quiz_lang ON quiz_translations(quiz_id, lang);
 CREATE INDEX idx_quiz_questions_quiz_order ON quiz_questions(quiz_id, "order");
 CREATE INDEX idx_quiz_prompts_quiz_lang ON quiz_prompts(quiz_id, lang);
-CREATE INDEX idx_sessions_quiz_state ON sessions(quiz_id, state);
+CREATE INDEX idx_quiz_sessions_quiz_state ON quiz_sessions(quiz_id, state);
 CREATE INDEX idx_leads_quiz_id ON leads(quiz_id);
 CREATE INDEX idx_leads_email ON leads(email);
 
@@ -228,7 +228,7 @@ CREATE TRIGGER update_quiz_questions_updated_at BEFORE UPDATE ON quiz_questions 
 CREATE TRIGGER update_quiz_scoring_rules_updated_at BEFORE UPDATE ON quiz_scoring_rules FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_quiz_prompts_updated_at BEFORE UPDATE ON quiz_prompts FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_leads_updated_at BEFORE UPDATE ON leads FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_quiz_sessions_updated_at BEFORE UPDATE ON quiz_sessions FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_email_events_updated_at BEFORE UPDATE ON email_events FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

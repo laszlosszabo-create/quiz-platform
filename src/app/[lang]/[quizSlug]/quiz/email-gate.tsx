@@ -8,6 +8,7 @@ interface EmailGateProps {
   quiz: Quiz
   allTranslations: QuizTranslation[]
   lang: string
+  sessionId: string
   onEmailSubmitted: (leadId: string) => void
 }
 
@@ -15,6 +16,7 @@ export function EmailGate({
   quiz,
   allTranslations,
   lang,
+  sessionId,
   onEmailSubmitted
 }: EmailGateProps) {
   const [email, setEmail] = useState('')
@@ -60,10 +62,10 @@ export function EmailGate({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          quiz_id: quiz.id,
+          quizSlug: quiz.slug,
           email: email.trim(),
-          name: name.trim(),
           lang,
+          session_id: sessionId,
         }),
       })
 

@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
-// Validation schema - simplified for Module 3 compatibility
+// Validation schema - matching quiz_leads table structure  
 const createLeadSchema = z.object({
   quizSlug: z.string(),
   email: z.string().email(),
   lang: z.string().min(2).max(5),
-  name: z.string().optional(),
-  demographics: z.record(z.any()).optional(),
-  utm: z.record(z.string()).optional()
+  session_id: z.string().uuid().optional()
 })
 
 export async function POST(request: NextRequest) {
@@ -44,16 +42,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create new lead
+    // Create new lead - matching quiz_leads table structure
     const { data: lead, error } = await supabaseAdmin
       .from('quiz_leads')
       .insert({
         quiz_id: quiz.id,
+        session_id: validatedData.session_id || null,
         email: validatedData.email,
-        name: validatedData.name || null,
-        lang: validatedData.lang,
-        demographics: validatedData.demographics || {},
-        utm: validatedData.utm || {}
+        lang: validatedData.lang
       })
       .select()
       .single()

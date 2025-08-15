@@ -195,6 +195,7 @@ export function QuizClient({
         quiz={quiz}
         allTranslations={allTranslations}
         lang={lang}
+        sessionId={sessionId}
         onEmailSubmitted={handleEmailSubmitted}
       />
     )

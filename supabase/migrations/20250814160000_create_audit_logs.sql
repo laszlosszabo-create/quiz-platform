@@ -1,5 +1,7 @@
 -- Create audit_logs table for tracking admin actions
-CREATE TABLE IF NOT EXISTS public.audit_logs (
+DROP TABLE IF EXISTS public.audit_logs CASCADE;
+
+CREATE TABLE public.audit_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id TEXT NOT NULL,
     user_email TEXT NOT NULL,
@@ -24,7 +26,7 @@ CREATE POLICY "Allow admin users to read audit logs" ON public.audit_logs
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM public.admin_users 
-            WHERE admin_users.id = auth.uid()::text
+            WHERE admin_users.id = auth.uid()
         )
     );
 
@@ -33,7 +35,7 @@ CREATE POLICY "Allow admin users to insert audit logs" ON public.audit_logs
     FOR INSERT WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.admin_users 
-            WHERE admin_users.id = auth.uid()::text
+            WHERE admin_users.id = auth.uid()
         )
     );
 

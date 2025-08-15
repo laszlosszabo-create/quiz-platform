@@ -22,44 +22,67 @@ export async function POST(request: NextRequest) {
     console.log('Request body received:', body)
     const validatedData = createSessionSchema.parse(body)
 
-    // First, get the quiz by slug
-    const { data: quiz, error: quizError } = await supabaseAdmin
-      .from('quizzes')
-      .select('id')
-      .eq('slug', validatedData.quizSlug)
-      .single()
+    // Use direct fetch to bypass Supabase client issues
+    const quizResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/quizzes?select=id&slug=eq.${validatedData.quizSlug}&limit=1`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
 
-    if (quizError || !quiz) {
+    const quizData = await quizResponse.json()
+    console.log('Quiz query result:', { status: quizResponse.status, data: quizData })
+
+    if (!quizResponse.ok || !quizData || quizData.length === 0) {
       return NextResponse.json(
         { error: 'Quiz not found' },
         { status: 404 }
       )
     }
 
+    const quiz = quizData[0]
+    
     // Generate client token
     const client_token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
     // Create new session
-    const { data: session, error } = await supabaseAdmin
-      .from('quiz_sessions')
-      .insert({
-        quiz_id: quiz.id,
-        lang: validatedData.lang,
-        state: 'started',
-        answers: {},
-        current_question: 1,
-        client_token: client_token
-      })
-      .select()
-      .single()
+    const sessionResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/quiz_sessions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          quiz_id: quiz.id,
+          lang: validatedData.lang,
+          state: 'started',
+          answers: {},
+          current_question: 1,
+          client_token: client_token
+        })
+      }
+    )
 
-    if (error) {
-      console.error('Session creation error:', error)
+    const sessionData = await sessionResponse.json()
+    console.log('Session creation result:', { status: sessionResponse.status, data: sessionData })
+
+    if (!sessionResponse.ok) {
+      console.error('Session creation error:', sessionData)
       return NextResponse.json(
         { error: 'Failed to create session' },
         { status: 500 }
       )
     }
+
+    const session = Array.isArray(sessionData) ? sessionData[0] : sessionData
 
     return NextResponse.json({
       session_id: session.id,

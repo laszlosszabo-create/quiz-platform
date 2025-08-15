@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from '@/lib/supabase-config'
 import { Database } from '@/types/database'
 
 type EventType = 
@@ -28,13 +28,10 @@ interface TrackingData {
  */
 export class EventTracker {
   private static instance: EventTracker
-  private supabase: ReturnType<typeof createClient<Database>>
+  private supabase: ReturnType<typeof getSupabaseClient>
   
   private constructor() {
-    this.supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    this.supabase = getSupabaseClient()
   }
   
   static getInstance(): EventTracker {
@@ -45,34 +42,56 @@ export class EventTracker {
   }
   
   /**
-   * Track an event
+   * Track an event via the tracking API
    */
   async track(eventType: EventType, data: TrackingData): Promise<void> {
     try {
-      // Try to store in audit_logs for analytics
-      await this.supabase
-        .from('audit_logs')
-        .insert({
-          action: `USER_${eventType.toUpperCase()}`,
-          resource_type: 'session',
-          resource_id: data.session_id || data.quiz_id,
-          metadata: {
-            event_type: eventType,
-            ...data,
-            timestamp: new Date().toISOString(),
-            user_agent: navigator.userAgent,
-            url: window.location.href
-          }
-        })
-      
-      // Also send to console in development
+      // Always log to console in development
       if (process.env.NODE_ENV === 'development') {
         console.log(`📊 Event tracked: ${eventType}`, data)
       }
       
+      // Send to tracking API instead of direct database insertion
+      const payload = {
+        event: eventType,
+        quiz_id: data.quiz_id,
+        session_id: data.session_id,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          ...data,
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+          url: typeof window !== 'undefined' ? window.location.href : null,
+        }
+      }
+
+      // Add event-specific fields
+      if (eventType === 'page_view') {
+        Object.assign(payload, {
+          page_type: 'quiz', // Default, can be customized
+          referrer: typeof document !== 'undefined' ? document.referrer : undefined
+        })
+      }
+      
+      if (eventType === 'answer_select' && data.question_key && data.answer_key) {
+        Object.assign(payload, {
+          question_key: data.question_key,
+          option_key: data.answer_key
+        })
+      }
+
+      await fetch('/api/tracking', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      
     } catch (error) {
       // Silent fail - don't break user experience
-      console.warn('Event tracking failed:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Event tracking failed:', error)
+      }
     }
   }
   

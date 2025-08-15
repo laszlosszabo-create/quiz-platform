@@ -1,21 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
-import { Database } from '@/types/database'
+// This file is deprecated - use supabase-config.ts instead
+// Kept for backward compatibility
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+import { getSupabaseAdmin } from './supabase-config'
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error('Missing Supabase admin environment variables')
-}
-
-// Server-side admin client with service role (for admin operations)
-export const supabaseAdmin = createClient<Database>(
-  supabaseUrl,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+// Legacy export for existing code - will be removed in future version
+export const supabaseAdmin = getSupabaseAdmin()

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 import { getTranslations } from '@/lib/translations'
 import { QuizClient } from './quiz-client'
 
@@ -15,6 +15,7 @@ export async function generateMetadata({ params }: QuizPageProps): Promise<Metad
   const { lang, quizSlug } = await params
   
   // Get quiz data
+  const supabase = getSupabaseAdmin()
   const { data: quiz } = await supabase
     .from('quizzes')
     .select('id, default_lang')
@@ -64,6 +65,7 @@ export default async function QuizPage({
   }
 
   // Get quiz data
+  const supabase = getSupabaseAdmin()
   const { data: quiz, error: quizError } = await supabase
     .from('quizzes')
     .select('*')

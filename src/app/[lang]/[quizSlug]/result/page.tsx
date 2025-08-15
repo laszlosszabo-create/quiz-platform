@@ -1,23 +1,24 @@
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 import { getTranslations } from '@/lib/translations'
 import { ResultClient } from './result-client'
 
 interface ResultPageProps {
-  params: {
+  params: Promise<{
     lang: string
     quizSlug: string
-  }
-  searchParams: {
+  }>
+  searchParams: Promise<{
     session?: string
-  }
+  }>
 }
 
 export async function generateMetadata({ params }: ResultPageProps): Promise<Metadata> {
-  const { lang, quizSlug } = params
+  const { lang, quizSlug } = await params
   
   // Get quiz data
+  const supabase = getSupabaseAdmin()
   const { data: quiz } = await supabase
     .from('quizzes')
     .select('id, default_lang')
@@ -54,8 +55,8 @@ export async function generateMetadata({ params }: ResultPageProps): Promise<Met
 }
 
 export default async function ResultPage({ params, searchParams }: ResultPageProps) {
-  const { lang, quizSlug } = params
-  const { session: sessionId } = searchParams
+  const { lang, quizSlug } = await params
+  const { session: sessionId } = await searchParams
 
   // Validate language
   const supportedLangs = ['hu', 'en']
@@ -68,6 +69,7 @@ export default async function ResultPage({ params, searchParams }: ResultPagePro
   }
 
   // Get quiz data
+  const supabase = getSupabaseAdmin()
   const { data: quiz, error: quizError } = await supabase
     .from('quizzes')
     .select('*')
@@ -81,7 +83,7 @@ export default async function ResultPage({ params, searchParams }: ResultPagePro
 
   // Get session data
   const { data: session, error: sessionError } = await supabase
-    .from('sessions')
+    .from('quiz_sessions')
     .select('*')
     .eq('id', sessionId)
     .eq('quiz_id', quiz.id)

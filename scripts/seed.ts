@@ -90,6 +90,19 @@ async function cleanExistingQuiz() {
 
   if (existingQuizzes && existingQuizzes.length > 0) {
     const existingQuiz = existingQuizzes[0]
+    
+    // Delete products first (they reference quiz_id)
+    const { error: productsError } = await supabase
+      .from('products')
+      .delete()
+      .eq('quiz_id', existingQuiz.id)
+    
+    if (productsError) {
+      console.log('⚠️ Products deletion error (may not exist):', productsError.message)
+    } else {
+      console.log('🗑️ Products cleaned')
+    }
+    
     // Delete quiz (cascade will handle related data)
     const { error } = await supabase
       .from('quizzes')
@@ -118,8 +131,8 @@ async function createQuiz() {
       theme: {
         primary_color: '#3B82F6',
         secondary_color: '#10B981',
-        logo_url: 'https://placeholder.example.com/logo.png',
-        hero_image_url: 'https://placeholder.example.com/hero.jpg',
+        logo_url: '/logo-placeholder.svg',
+        hero_image_url: '/hero-placeholder.jpg',
         calendly_url: 'https://calendly.com/demo-account'
       }
     })
@@ -135,16 +148,42 @@ async function createTranslations(quizId: string) {
     // Landing Page - HU
     { quiz_id: quizId, lang: 'hu', field_key: 'landing_headline', value: 'ADHD Gyorsteszt - Ismerd meg magad!' },
     { quiz_id: quizId, lang: 'hu', field_key: 'landing_sub', value: 'Egy 5 perces teszt, amely segít feltérképezni az ADHD tüneteit. Tudományosan megalapozott kérdések, személyre szabott eredmény.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_description', value: 'Tudományosan megalapozott ADHD teszt 5 perc alatt. Ismerd meg jobban magad és kapj személyre szabott visszajelzést a tüneteidről.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_cta_text', value: 'Teszt indítása' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'social_proof_1', value: '5,000+ kitöltő' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'social_proof_2', value: '98% elégedettség' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'social_proof_3', value: 'Tudományos alapok' },
     { quiz_id: quizId, lang: 'hu', field_key: 'cta_text', value: 'Teszt indítása' },
     { quiz_id: quizId, lang: 'hu', field_key: 'meta_title', value: 'ADHD Gyorsteszt - Ingyenes Online Felmérés' },
     { quiz_id: quizId, lang: 'hu', field_key: 'meta_description', value: 'Tudományosan megalapozott ADHD teszt 5 perc alatt. Személyre szabott eredmény és javaslatok.' },
     
+    // Email Gate - HU
+    { quiz_id: quizId, lang: 'hu', field_key: 'email_gate_headline', value: 'Kapd meg személyre szabott eredményedet!' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'email_gate_description', value: 'Add meg az email címedet és a nevedet, hogy elküldhessük a részletes elemzést és hasznos tippeket.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'email_field_placeholder', value: 'Email címed' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'name_field_placeholder', value: 'Neved' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'email_gate_submit_button', value: 'Eredmény megjelenítése' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'email_gate_privacy_text', value: 'Adataidat biztonságban tartjuk és nem adjuk át harmadik félnek.' },
+    
     // Landing Page - EN
     { quiz_id: quizId, lang: 'en', field_key: 'landing_headline', value: 'ADHD Quick Assessment - Know Yourself Better!' },
     { quiz_id: quizId, lang: 'en', field_key: 'landing_sub', value: 'A 5-minute test that helps map ADHD symptoms. Scientifically based questions with personalized results.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_description', value: 'Scientifically based ADHD test in 5 minutes. Get to know yourself better and receive personalized feedback about your symptoms.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_cta_text', value: 'Start Assessment' },
+    { quiz_id: quizId, lang: 'en', field_key: 'social_proof_1', value: '5,000+ completed' },
+    { quiz_id: quizId, lang: 'en', field_key: 'social_proof_2', value: '98% satisfaction' },
+    { quiz_id: quizId, lang: 'en', field_key: 'social_proof_3', value: 'Scientific foundation' },
     { quiz_id: quizId, lang: 'en', field_key: 'cta_text', value: 'Start Assessment' },
     { quiz_id: quizId, lang: 'en', field_key: 'meta_title', value: 'ADHD Quick Test - Free Online Assessment' },
     { quiz_id: quizId, lang: 'en', field_key: 'meta_description', value: 'Scientifically based ADHD test in 5 minutes. Personalized results and recommendations.' },
+    
+    // Email Gate - EN
+    { quiz_id: quizId, lang: 'en', field_key: 'email_gate_headline', value: 'Get your personalized results!' },
+    { quiz_id: quizId, lang: 'en', field_key: 'email_gate_description', value: 'Enter your email and name to receive detailed analysis and helpful tips.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'email_field_placeholder', value: 'Your email' },
+    { quiz_id: quizId, lang: 'en', field_key: 'name_field_placeholder', value: 'Your name' },
+    { quiz_id: quizId, lang: 'en', field_key: 'email_gate_submit_button', value: 'Show Results' },
+    { quiz_id: quizId, lang: 'en', field_key: 'email_gate_privacy_text', value: 'We keep your data secure and do not share it with third parties.' },
     
     // Questions - HU
     { quiz_id: quizId, lang: 'hu', field_key: 'question:attention_span:text', value: 'Mennyire nehéz koncentrálnod hosszabb feladatok során?' },

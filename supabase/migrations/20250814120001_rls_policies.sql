@@ -12,7 +12,7 @@ ALTER TABLE quiz_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quiz_scoring_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quiz_prompts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quiz_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_events ENABLE ROW LEVEL SECURITY;
@@ -174,17 +174,17 @@ CREATE POLICY leads_admin_all ON leads
     WITH CHECK (is_admin());
 
 -- =====================================================
--- SESSIONS POLICIES
+-- QUIZ_SESSIONS POLICIES
 -- =====================================================
 
 -- Public insert/update based on client token (future implementation)
 -- For now, allow public insert for anonymous sessions
-CREATE POLICY sessions_public_insert ON sessions
+CREATE POLICY sessions_public_insert ON quiz_sessions
     FOR INSERT
     WITH CHECK (quiz_id IS NOT NULL);
 
 -- Public update own session (placeholder - will be refined in funnel module)
-CREATE POLICY sessions_public_update ON sessions
+CREATE POLICY sessions_public_update ON quiz_sessions
     FOR UPDATE
     USING (
         -- Future: client_token = current_client_token() OR
@@ -196,7 +196,7 @@ CREATE POLICY sessions_public_update ON sessions
     );
 
 -- Admin full access
-CREATE POLICY sessions_admin_all ON sessions
+CREATE POLICY sessions_admin_all ON quiz_sessions
     FOR ALL
     USING (is_admin())
     WITH CHECK (is_admin());
