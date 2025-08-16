@@ -347,6 +347,12 @@ Please provide personalized feedback based on these results. Be positive and con
   const testAIPrompt = async () => {
     try {
       setError('')
+      // Validate required fields before calling API
+      if (!formData.system_prompt?.trim() || !formData.user_prompt?.trim()) {
+        setError('Töltsd ki a System és User prompt mezőket a teszteléshez.')
+        return
+      }
+
       // Mock test data
       const testData = {
         name: 'Teszt Felhasználó',
@@ -359,7 +365,7 @@ Please provide personalized feedback based on these results. Be positive and con
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           system_prompt: formData.system_prompt,
-          user_prompt: formData.user_prompt,
+          ai_prompt: formData.user_prompt, // canonical field
           ai_provider: formData.ai_provider,
           ai_model: formData.ai_model,
           test_data: testData
@@ -367,7 +373,18 @@ Please provide personalized feedback based on these results. Be positive and con
       })
 
       if (!response.ok) {
-        throw new Error('AI prompt teszt sikertelen')
+        let msg = 'AI prompt teszt sikertelen'
+        try {
+          const err = await response.json()
+          if (err?.error) {
+            msg += `: ${err.error}`
+            if (err?.missing) {
+              msg += ` (missing: ${Object.keys(err.missing).filter(k => err.missing[k]).join(', ')})`
+            }
+          }
+        } catch {}
+        setError(msg)
+        return
       }
 
       const result = await response.json()

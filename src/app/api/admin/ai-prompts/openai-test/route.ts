@@ -3,30 +3,44 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { system_prompt, user_prompt, ai_model = 'gpt-4o', ai_provider = 'openai', test_data } = body
+    console.log('[AI-TEST] Received request body:', JSON.stringify(body, null, 2))
+    
+    const { system_prompt, user_prompt, ai_prompt, ai_model = 'gpt-4o', ai_provider = 'openai', test_data } = body
+
+    // Support both canonical ai_prompt and legacy user_prompt
+    const actualUserPrompt = ai_prompt || user_prompt
+    console.log('[AI-TEST] Using user prompt:', actualUserPrompt)
 
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: 'Missing OpenAI API key' }, { status: 500 })
+      console.log('[AI-TEST] Missing OpenAI API key — returning mocked response for local testing')
+      // Return a mocked response so the admin UI test works locally without a key
+      const mocked = `MOCKED AI RESPONSE\n\n${(system_prompt ? `[SYSTEM]\n${system_prompt}\n\n` : '')}[USER]\n${(actualUserPrompt || '').slice(0, 2000)}`
+      return NextResponse.json({ generated_text: mocked, mocked: true })
     }
-    if (!system_prompt || !user_prompt) {
-      return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
+    // Only the user prompt is required for a test; system prompt is optional
+    if (!actualUserPrompt) {
+      const missing = { ai_prompt: true }
+      console.log('[AI-TEST] Missing user prompt')
+      return NextResponse.json({ error: 'Missing prompt', missing }, { status: 400 })
     }
     if (ai_provider !== 'openai') {
       return NextResponse.json({ error: 'Only OpenAI is supported in this test endpoint.' }, { status: 400 })
     }
 
     // Replace variables in user_prompt
-    let filledUserPrompt = user_prompt
+    let filledUserPrompt = actualUserPrompt
     if (test_data && typeof test_data === 'object') {
       Object.entries(test_data).forEach(([key, value]) => {
         filledUserPrompt = filledUserPrompt.replace(new RegExp(`{{${key}}}`, 'g'), String(value))
       })
     }
 
-    const messages = [
-      { role: 'system', content: system_prompt },
-      { role: 'user', content: filledUserPrompt }
-    ]
+    const messages = (
+      [
+        ...(system_prompt ? [{ role: 'system' as const, content: system_prompt as string }] : []),
+        { role: 'user' as const, content: filledUserPrompt }
+      ]
+    )
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
