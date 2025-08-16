@@ -1,3 +1,12 @@
+## 2025-08-16
+
+- Kick off Phase 0 diagnostics for AI Prompts POST 500.
+- Added x-debug gated detailed error payloads to admin AI Prompts API (POST/PUT/DELETE).
+- Added scripts:
+  - `scripts/inspect-table-quiz-ai-prompts.js` to inventory columns/constraints/triggers.
+  - `scripts/insert-probe-quiz-ai-prompts.js` to run direct service-role insert and log exact DB error.
+- Updated CRUD smoke test to pass `x-debug: true` and print full error bodies on failures.
+
 # Quiz Platform - Változásnapló
 
 ## [Docs] 2025-08-15 – AI Prompts Canonicalization (Option 1)

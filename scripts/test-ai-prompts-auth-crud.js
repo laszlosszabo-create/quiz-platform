@@ -90,6 +90,7 @@ async function main() {
     lang,
     system_prompt: 'You are a helpful AI assistant for quiz results.',
     user_prompt: 'Create result for {{name}} with {{scores}} and top {{top_category}}',
+  ai_prompt: 'Create result for {{name}} with {{scores}} and top {{top_category}}',
     ai_provider: 'openai',
     ai_model: 'gpt-4o'
   })
@@ -108,7 +109,7 @@ async function main() {
     console.log(`\n➡️ POST create (${lang})`)
     const postRes = await fetchJson(`${BASE_URL}/api/admin/ai-prompts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookie, Authorization: `Bearer ${bearer}` },
+  headers: { 'Content-Type': 'application/json', Cookie: cookie, Authorization: `Bearer ${bearer}`, 'x-debug': 'true' },
       body: JSON.stringify(makePrompt(lang))
     })
     console.log('POST status:', postRes.res.status, 'id:', postRes.json?.data?.id || '-')
@@ -133,12 +134,13 @@ async function main() {
       lang: first.lang,
       system_prompt: (first.system_prompt || 'You are AI') + ' [updated]',
       user_prompt: (first.user_prompt_template || 'Create for {{name}} with {{scores}} and {{top_category}}') + ' [updated]',
+      ai_prompt: (first.user_prompt_template || first.ai_prompt || 'Create for {{name}} with {{scores}} and {{top_category}}') + ' [updated]',
       ai_provider: first.ai_provider || 'openai',
       ai_model: first.ai_model || 'gpt-4o'
     }
     const putRes = await fetchJson(`${BASE_URL}/api/admin/ai-prompts`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Cookie: cookie, Authorization: `Bearer ${bearer}` },
+  headers: { 'Content-Type': 'application/json', Cookie: cookie, Authorization: `Bearer ${bearer}`, 'x-debug': 'true' },
       body: JSON.stringify(putBody)
     })
     console.log('PUT status:', putRes.res.status, 'updated id:', putRes.json?.data?.id || '-')
@@ -153,7 +155,7 @@ async function main() {
     console.log(`\n➡️ DELETE (${last.lang})`)
     const delRes = await fetchJson(`${BASE_URL}/api/admin/ai-prompts?id=${last.id}&quiz_id=${quizId}`, {
       method: 'DELETE',
-      headers: { Cookie: cookie, Authorization: `Bearer ${bearer}` }
+  headers: { Cookie: cookie, Authorization: `Bearer ${bearer}`, 'x-debug': 'true' }
     })
     console.log('DELETE status:', delRes.res.status, delRes.json?.message || delRes.json?.error)
   }

@@ -96,12 +96,12 @@ export default function AIPromptsEditor({ quizId, adminUser }: AIPromptsEditorPr
 
   const loadCurrentLanguagePrompt = () => {
     const currentPrompt = prompts.find(p => p.lang === currentLang)
-    if (currentPrompt) {
+  if (currentPrompt) {
       setFormData({
         id: currentPrompt.id,
         lang: currentLang,
         system_prompt: currentPrompt.system_prompt || '',
-        user_prompt: currentPrompt.user_prompt_template || '',
+    user_prompt: (currentPrompt as any).user_prompt_template || (currentPrompt as any).ai_prompt || '',
         ai_provider: 'openai', // Default since not stored in DB
         ai_model: 'gpt-4o' // Default since not stored in DB
       })
@@ -219,8 +219,9 @@ Please provide personalized feedback based on these results. Be positive and con
       const promptData = {
         quiz_id: quizId,
         lang: formData.lang,
+        ai_prompt: formData.user_prompt,
+        // Extra fields kept for UI continuity; server ignores them in canonical mode
         system_prompt: formData.system_prompt,
-        user_prompt: formData.user_prompt,
         ai_provider: formData.ai_provider,
         ai_model: formData.ai_model
       }

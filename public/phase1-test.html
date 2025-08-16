@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phase 1 POST Test - AI Prompts</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        .test-section { border: 1px solid #ccc; margin: 1rem 0; padding: 1rem; }
+        .result { background: #f5f5f5; padding: 1rem; margin: 0.5rem 0; white-space: pre-wrap; }
+        .success { border-left: 4px solid green; }
+        .error { border-left: 4px solid red; }
+        .warning { border-left: 4px solid orange; }
+        button { padding: 0.5rem 1rem; margin: 0.5rem; }
+    </style>
+</head>
+<body>
+    <h1>Phase 1 POST Test - AI Prompts API</h1>
+    <p><strong>Cél:</strong> A Phase 1 javítások tesztelése (kanonikus séma, debug headers, hibakezelés)</p>
+    
+    <div class="test-section">
+        <h2>1. Health Check</h2>
+        <button onclick="testHealth()">Test Health</button>
+        <div id="health-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. GET prompts (authentication teszt)</h2>
+        <button onclick="testGet()">Test GET</button>
+        <div id="get-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. POST új prompt (Phase 1 fő teszt)</h2>
+        <button onclick="testPost()">Test POST</button>
+        <div id="post-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. POST duplikált prompt (409 conflict teszt)</h2>
+        <button onclick="testPostDuplicate()">Test POST Duplicate</button>
+        <div id="post-dup-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. POST hibás adatok (400 validation teszt)</h2>
+        <button onclick="testPostInvalid()">Test POST Invalid</button>
+        <div id="post-invalid-result" class="result"></div>
+    </div>
+
+    <script>
+        let testQuizId = 'test-phase1-' + Date.now();
+        
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-debug': 'true',
+                        ...options.headers
+                    }
+                });
+                
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = text;
+                }
+                
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    data: data,
+                    raw: text
+                };
+            } catch (error) {
+                return {
+                    ok: false,
+                    status: 0,
+                    error: error.message,
+                    data: null
+                };
+            }
+        }
+        
+        function displayResult(elementId, result, expectedStatus = 200) {
+            const element = document.getElementById(elementId);
+            const success = result.status === expectedStatus;
+            
+            element.className = `result ${success ? 'success' : (result.status >= 400 ? 'error' : 'warning')}`;
+            element.textContent = `Status: ${result.status} ${success ? '✅' : '❌'}\n` +
+                                 `Expected: ${expectedStatus}\n\n` +
+                                 `Response:\n${JSON.stringify(result.data, null, 2)}`;
+        }
+        
+        async function testHealth() {
+            const result = await makeRequest('/api/health');
+            displayResult('health-result', result, 200);
+        }
+        
+        async function testGet() {
+            const result = await makeRequest(`/api/admin/ai-prompts?quiz_id=${testQuizId}`);
+            displayResult('get-result', result, 401); // Várható: unauthorized
+        }
+        
+        async function testPost() {
+            const result = await makeRequest('/api/admin/ai-prompts', {
+                method: 'POST',
+                body: JSON.stringify({
+                    quiz_id: testQuizId,
+                    lang: 'en',
+                    ai_prompt: 'Test prompt for Phase 1 validation'
+                })
+            });
+            displayResult('post-result', result, 401); // Várható: unauthorized (nincs admin auth)
+        }
+        
+        async function testPostDuplicate() {
+            // Ugyanazokkal az adatokkal mint a POST teszt
+            const result = await makeRequest('/api/admin/ai-prompts', {
+                method: 'POST',
+                body: JSON.stringify({
+                    quiz_id: testQuizId,
+                    lang: 'en',
+                    ai_prompt: 'Duplicate test prompt'
+                })
+            });
+            displayResult('post-dup-result', result, 401); // Várható: unauthorized
+        }
+        
+        async function testPostInvalid() {
+            const result = await makeRequest('/api/admin/ai-prompts', {
+                method: 'POST',
+                body: JSON.stringify({
+                    // Hiányzó quiz_id és lang
+                    ai_prompt: 'Invalid test prompt'
+                })
+            });
+            displayResult('post-invalid-result', result, 400); // Várható: validation error
+        }
+    </script>
+</body>
+</html>

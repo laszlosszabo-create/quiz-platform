@@ -53,10 +53,17 @@ export async function GET(
       .eq('quiz_id', id)
 
     // Get AI prompts
-    const { data: prompts, error: promptsError } = await supabase
+    const { data: rawPrompts } = await supabase
       .from('quiz_ai_prompts')
-      .select('lang, system_prompt, user_prompt_template, variables')
+      .select('*')
       .eq('quiz_id', id)
+
+    const prompts = (rawPrompts || []).map((p: any) => ({
+      lang: p.lang,
+      system_prompt: p.system_prompt || '',
+      user_prompt_template: p.user_prompt_template ?? p.ai_prompt ?? '',
+      variables: p.variables || null,
+    }))
 
     // Transform data to expected format
     const transformedQuiz = {
@@ -72,7 +79,7 @@ export async function GET(
       description: translations?.find(t => t.lang === quiz.default_lang && t.field_key === 'description')?.value || '',
       quiz_questions: questions || [],
       scoring_rules: scoringRules || [],
-      prompts: prompts || []
+  prompts: prompts || []
     }
 
     return NextResponse.json(transformedQuiz)

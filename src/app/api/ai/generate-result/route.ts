@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const scores = session.scores as Record<string, any> || {}
     
     // Replace variables in user prompt template
-  let userPrompt = aiPrompt.user_prompt_template || aiPrompt.ai_prompt || 'Analyze the user responses: {{answers}}'
+  let userPrompt = aiPrompt.ai_prompt || aiPrompt.user_prompt_template || 'Analyze the user responses: {{answers}}'
     userPrompt = userPrompt
       .replace('{{answers}}', JSON.stringify(answers))
       .replace('{{scores}}', JSON.stringify(scores))
@@ -75,19 +75,15 @@ export async function POST(request: NextRequest) {
 
     try {
       // Generate AI result with timeout
-      const completion = await Promise.race([
+      const completion: any = await Promise.race([
         openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: aiPrompt.system_prompt || 'You are a helpful assistant analyzing quiz results.'
-            },
-            {
-              role: 'user',
-              content: userPrompt
-            }
-          ],
+          messages: (
+            [
+              ...(aiPrompt.system_prompt ? [{ role: 'system' as const, content: aiPrompt.system_prompt as string }] : []),
+              { role: 'user' as const, content: userPrompt },
+            ]
+          ),
           max_tokens: 500,
           temperature: 0.7,
         }),
@@ -95,8 +91,7 @@ export async function POST(request: NextRequest) {
           setTimeout(() => reject(new Error('AI timeout')), 10000)
         )
       ])
-
-      const aiResult = completion.choices[0]?.message?.content?.trim()
+      const aiResult = (completion as any)?.choices?.[0]?.message?.content?.trim?.()
 
       if (!aiResult) {
         throw new Error('Empty AI response')

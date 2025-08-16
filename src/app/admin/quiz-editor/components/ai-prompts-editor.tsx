@@ -93,12 +93,12 @@ export default function AIPromptsEditor({ quizData, onDataChange }: AIPromptsEdi
 
   const loadCurrentLanguagePrompt = () => {
     const currentPrompt = prompts.find(p => p.lang === currentLang)
-    if (currentPrompt) {
+  if (currentPrompt) {
       setFormData({
         id: currentPrompt.id,
         lang: currentLang,
         system_prompt: currentPrompt.system_prompt || '',
-        user_prompt: currentPrompt.user_prompt_template || '',
+    user_prompt: (currentPrompt as any).user_prompt_template || (currentPrompt as any).ai_prompt || '',
         ai_provider: 'openai', // Default since not stored in DB
         ai_model: 'gpt-4o' // Default since not stored in DB
       })
@@ -205,18 +205,18 @@ Please provide personalized feedback based on these results. Be positive and con
         return
       }
 
+      // Canonical: single-column ai_prompt in DB
       const promptData = {
         quiz_id: quizData.id,
         lang: formData.lang,
-        system_prompt: formData.system_prompt,
-        user_prompt_template: formData.user_prompt
+        ai_prompt: formData.user_prompt,
       }
 
       if (formData.id) {
         // Update existing prompt
         const { error } = await supabase
           .from('quiz_ai_prompts')
-          .update(promptData)
+          .update({ ai_prompt: formData.user_prompt })
           .eq('id', formData.id)
 
         if (error) throw error
