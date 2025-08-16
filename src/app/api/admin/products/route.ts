@@ -43,19 +43,7 @@ async function validateStripePrice(stripe_price_id: string): Promise<boolean> {
   }
 }
 
-// Audit log function (simplified)
-async function logAdminAction(action: string, details: any) {
-  try {
-    const supabase = getSupabaseAdmin()
-    await supabase.from('audit_logs').insert([{
-      action,
-      details,
-      created_at: new Date().toISOString()
-    }])
-  } catch (error) {
-    console.error('Audit log error:', error)
-  }
-}
+// Note: Use canonical audit log helper from '@/lib/audit-log' at call sites below.
 
 // Get all products with optional filters
 export async function GET(request: NextRequest) {

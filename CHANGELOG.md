@@ -7,6 +7,13 @@
   - `scripts/insert-probe-quiz-ai-prompts.js` to run direct service-role insert and log exact DB error.
 - Updated CRUD smoke test to pass `x-debug: true` and print full error bodies on failures.
 
+### Admin AI Prompt Test Improvements
+- Editor test button updated to send canonical `ai_prompt` and validate required fields
+- Rich client-side error reporting (shows missing fields and server error text)
+- `/api/admin/ai-prompts/openai-test` endpoint now supports both `ai_prompt` and legacy `user_prompt`
+- System prompt is optional for tests; only user prompt is required
+- If `OPENAI_API_KEY` is missing, endpoint returns a mocked response for local testing (200)
+
 # Quiz Platform - Változásnapló
 
 ## [Docs] 2025-08-15 – AI Prompts Canonicalization (Option 1)

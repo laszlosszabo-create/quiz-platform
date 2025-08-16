@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
+import { createAuditLog } from '@/lib/audit-log'
 import OpenAI from 'openai'
 
 // Validation schema
@@ -118,19 +119,19 @@ export async function POST(request: NextRequest) {
       console.error('AI generation error:', aiError)
       
       // Log AI error for monitoring
-      await supabase
-        .from('audit_logs')
-        .insert({
-          action: 'AI_ERROR',
-          entity: 'ai_result_generation',
-          entity_id: validatedData.session_id,
-          diff: {
-            error: aiError instanceof Error ? aiError.message : 'Unknown AI error',
-            session_id: validatedData.session_id,
-            quiz_id: validatedData.quiz_id,
-            lang: validatedData.lang
-          }
-        })
+      await createAuditLog({
+        user_id: 'system',
+        user_email: 'system@ai',
+        action: 'AI_ERROR',
+        resource_type: 'ai_result_generation',
+        resource_id: validatedData.session_id,
+        details: {
+          error: aiError instanceof Error ? aiError.message : 'Unknown AI error',
+          session_id: validatedData.session_id,
+          quiz_id: validatedData.quiz_id,
+          lang: validatedData.lang
+        }
+      })
 
       // Return error - client will fall back to static result
       return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
+import { createAuditLog } from '@/lib/audit-log'
 
 // Event validation schemas
 const baseEventSchema = z.object({
@@ -52,22 +53,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedEvent = trackingEventSchema.parse(body)
 
-    // Create tracking record in audit_logs table
+    // Create tracking record in audit_logs table (canonical schema)
     const supabase = getSupabaseAdmin()
-    const { error } = await supabase
-      .from('audit_logs')
-      .insert({
+    const resourceId = validatedEvent.session_id || validatedEvent.quiz_id
+    try {
+      await createAuditLog({
+        user_id: 'system',
+        user_email: 'system@tracking',
         action: `TRACK_${validatedEvent.event.toUpperCase()}`,
-        entity: 'tracking_event',
-        entity_id: validatedEvent.session_id || validatedEvent.quiz_id,
-        diff: {
+        resource_type: 'tracking_event',
+        resource_id: resourceId,
+        details: {
           event_type: validatedEvent.event,
           quiz_id: validatedEvent.quiz_id,
           session_id: validatedEvent.session_id,
           timestamp: validatedEvent.timestamp,
           metadata: {
             ...validatedEvent.metadata,
-            // Add event-specific data
             ...(validatedEvent.event === 'page_view' && 'page_type' in validatedEvent && {
               page_type: validatedEvent.page_type,
               referrer: validatedEvent.referrer
@@ -83,9 +85,8 @@ export async function POST(request: NextRequest) {
           }
         }
       })
-
-    if (error) {
-      console.error('Tracking insert error:', error)
+    } catch (e) {
+      console.error('Tracking audit log failed:', e)
       // Don't fail the request for tracking errors
     }
 

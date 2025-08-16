@@ -99,36 +99,23 @@ export function hasPermission(userRole: AdminRole, requiredRole: AdminRole): boo
 
 export async function logAdminAction(
   action: string,
-  entity: string,
-  entityId?: string,
-  diff?: Record<string, any>
+  resourceType: string,
+  resourceId?: string,
+  details?: Record<string, any>
 ) {
-  const cookieStore = await cookies()
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
   const adminUser = await getAdminUser()
-  
   if (!adminUser) return
 
   try {
-    await supabase
-      .from('audit_logs')
-      .insert({
-        actor_id: adminUser.id,
-        action,
-        entity,
-        entity_id: entityId,
-        diff: diff || {}
-      })
+    const { createAuditLog } = await import('@/lib/audit-log')
+    await createAuditLog({
+      user_id: adminUser.id,
+      user_email: adminUser.email,
+      action,
+      resource_type: resourceType,
+      resource_id: resourceId || 'unknown',
+      details: details || {}
+    })
   } catch (error) {
     console.error('Error logging admin action:', error)
   }
