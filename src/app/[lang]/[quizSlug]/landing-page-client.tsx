@@ -93,7 +93,7 @@ export function LandingPageClient({
             className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-lg text-lg transition-colors duration-200"
             style={{ backgroundColor: primaryColor }}
           >
-            {translations.landing_cta_text || 'Start Quiz'}
+            {translations.landing_cta_text || translations.cta_text || 'Start Quiz'}
           </Link>
 
           {/* Social Proof */}

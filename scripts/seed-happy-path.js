@@ -12,6 +12,14 @@ async function main() {
     console.error('❌ Missing Supabase env vars: SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
     process.exit(1)
   }
+  // Debug: print masked env info to help diagnose CI secret issues
+  try {
+    const urlHost = new URL(supabaseUrl).host
+    const keyPreview = String(serviceKey).slice(0, 6)
+    console.log(`🔐 Using Supabase: host=${urlHost}, service_key_prefix=${keyPreview}******`)
+  } catch {
+    console.log('🔐 Using Supabase (could not parse URL host)')
+  }
 
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false }

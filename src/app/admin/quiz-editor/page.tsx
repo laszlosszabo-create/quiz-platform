@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import AdminAuthWrapper from '../components/admin-auth-wrapper'
 
 // Import all editor components based on documentation
 import QuizMetaEditor from './components/quiz-meta-editor'
-import TranslationEditor from './components/translation-editor'
+import TranslationEditor, { type TranslationEditorHandle } from './components/translation-editor'
 import QuestionsEditor from './components/questions-editor'
 import ScoringRulesEditor from './components/scoring-rules-editor'
 import AIPromptsEditor from './components/ai-prompts-editor'
@@ -56,6 +56,7 @@ function QuizEditorContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [unsavedChanges, setUnsavedChanges] = useState(false)
+  const translationEditorRef = useRef<TranslationEditorHandle | null>(null)
 
   // Load quiz data
   useEffect(() => {
@@ -106,18 +107,27 @@ function QuizEditorContent() {
     if (!quizId || !quizData) return
 
     try {
+      // Pull latest translations from the child editor (manual mode)
+      const latestTranslations = translationEditorRef.current?.getLocalTranslations()
+      const payload = {
+        ...quizData,
+        ...(latestTranslations ? { translations: latestTranslations } : {})
+      }
       const response = await fetch(`/api/admin/quizzes/${quizId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(quizData),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         throw new Error('Mentés sikertelen')
       }
-
+      // Reflect saved translations locally to keep state in sync
+      if (latestTranslations) {
+        setQuizData(prev => (prev ? { ...prev, translations: latestTranslations } : prev))
+      }
       setUnsavedChanges(false)
       alert('Quiz sikeresen mentve!')
     } catch (err) {
@@ -173,8 +183,10 @@ function QuizEditorContent() {
       case 'translations':
         return (
           <TranslationEditor 
+            ref={translationEditorRef}
             quizData={quizData}
             onDataChange={handleDataChange}
+            onDirtyChange={(dirty) => setUnsavedChanges(dirty)}
           />
         )
       case 'questions':

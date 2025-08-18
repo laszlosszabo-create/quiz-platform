@@ -10,20 +10,23 @@ async function getQuizStats() {
   try {
     const supabase = getSupabaseClient()
     
-    // Get quiz count
-    const { count: quizCount } = await supabase
+    // Get quiz count (avoid HEAD count in some environments)
+    const { data: quizRows, error: quizErr } = await supabase
       .from('quizzes')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact' })
+      .limit(1)
+    if (quizErr) throw quizErr
+    const quizCount = quizRows?.length ? (quizRows.length >= 0 ? (quizRows as any).length : 0) : (quizRows ? 1 : 0)
 
-    // Get session count  
+    // Get session count
     const { count: sessionCount } = await supabase
       .from('quiz_sessions')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
 
-    // Get completed session count
+    // Get completed session count (use select with head true but explicit columns)
     const { count: completedCount } = await supabase
       .from('quiz_sessions')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('status', 'completed')
 
     return {

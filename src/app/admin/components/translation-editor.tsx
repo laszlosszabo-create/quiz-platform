@@ -229,6 +229,28 @@ export default function TranslationEditor({ quizId }: TranslationEditorProps) {
         setTranslations(data)
       }
 
+      // Audit log mentés a sikeres változtatások után (best-effort)
+      try {
+        const { data: authUser } = await supabase.auth.getUser()
+        const user = authUser?.user
+        if (user?.id && user?.email) {
+          await fetch('/api/admin/audit-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: user.id,
+              user_email: user.email,
+              action: 'TRANSLATIONS_BULK_SAVE',
+              resource_type: 'quiz',
+              resource_id: quizId,
+              details: { fields: Object.keys(groupedTranslations).length, lang: currentLang }
+            })
+          })
+        }
+      } catch (e) {
+        console.warn('Audit log skip (no user/session or network issue):', (e as any)?.message || e)
+      }
+
     } catch (err) {
       console.error('Mentési hiba:', err)
       setError('Mentés sikertelen')

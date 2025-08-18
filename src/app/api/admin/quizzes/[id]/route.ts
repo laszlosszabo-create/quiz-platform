@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseClient } from '@/lib/supabase-config'
+import { getSupabaseAdmin } from '@/lib/supabase-config'
 
 export async function GET(
   request: NextRequest,
@@ -7,7 +7,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = getSupabaseClient()
+  // Use admin client to ensure consistent access regardless of RLS
+  const supabase = getSupabaseAdmin()
 
     // First, get the quiz basic data
     const { data: quiz, error: quizError } = await supabase
@@ -99,7 +100,8 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const supabase = getSupabaseClient()
+  // Use admin client for writes to bypass RLS and avoid silent failures
+  const supabase = getSupabaseAdmin()
 
     // Update basic quiz data
     const quizUpdates: any = {}
@@ -126,19 +128,29 @@ export async function PUT(
       }
     }
 
-    // Update translations
-    if (body.translations) {
-      for (const [lang, fields] of Object.entries(body.translations)) {
-        for (const [fieldKey, value] of Object.entries(fields as Record<string, string>)) {
-          await supabase
-            .from('quiz_translations')
-            .upsert({
-              quiz_id: id,
-              lang,
-              field_key: fieldKey,
-              value,
-              updated_at: new Date().toISOString()
-            })
+    // Update translations (batched upsert for reliability and speed)
+    if (body.translations && typeof body.translations === 'object') {
+      const rows: Array<{ quiz_id: string; lang: string; field_key: string; value: string | null; updated_at: string }>
+        = []
+      const nowIso = new Date().toISOString()
+      for (const [lang, fields] of Object.entries<Record<string, string | null>>(body.translations)) {
+        if (!fields) continue
+        for (const [field_key, value] of Object.entries(fields)) {
+          // Only upsert defined values; allow empty string but skip undefined
+          if (typeof value === 'undefined') continue
+          rows.push({ quiz_id: id, lang, field_key, value: value as string, updated_at: nowIso })
+        }
+      }
+      if (rows.length > 0) {
+        const { error: trError } = await supabase
+          .from('quiz_translations')
+          .upsert(rows, { onConflict: 'quiz_id,lang,field_key' })
+        if (trError) {
+          console.error('Error upserting translations:', trError)
+          return NextResponse.json(
+            { error: 'Failed to update translations' },
+            { status: 500 }
+          )
         }
       }
     }
@@ -148,7 +160,7 @@ export async function PUT(
       const defaultLang = body.default_lang || 'hu'
       
       if (body.title) {
-        await supabase
+        const { error } = await supabase
           .from('quiz_translations')
           .upsert({
             quiz_id: id,
@@ -156,11 +168,15 @@ export async function PUT(
             field_key: 'title',
             value: body.title,
             updated_at: new Date().toISOString()
-          })
+          }, { onConflict: 'quiz_id,lang,field_key' })
+        if (error) {
+          console.error('Error upserting title translation:', error)
+          return NextResponse.json({ error: 'Failed to update title translation' }, { status: 500 })
+        }
       }
       
       if (body.description) {
-        await supabase
+        const { error } = await supabase
           .from('quiz_translations')
           .upsert({
             quiz_id: id,
@@ -168,7 +184,11 @@ export async function PUT(
             field_key: 'description',
             value: body.description,
             updated_at: new Date().toISOString()
-          })
+          }, { onConflict: 'quiz_id,lang,field_key' })
+        if (error) {
+          console.error('Error upserting description translation:', error)
+          return NextResponse.json({ error: 'Failed to update description translation' }, { status: 500 })
+        }
       }
     }
 

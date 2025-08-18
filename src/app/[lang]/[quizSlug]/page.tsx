@@ -16,6 +16,7 @@ const LANDING_TRANSLATION_KEYS = [
   'landing_headline',
   'landing_sub', 
   'landing_cta_text',
+  'cta_text',
   'landing_description',
   'social_proof_1',
   'social_proof_2',

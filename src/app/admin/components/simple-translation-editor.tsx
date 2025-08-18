@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createClient } from '../../../lib/supabase'
 
 interface TranslationEditorProps {
@@ -11,6 +11,12 @@ export default function SimpleTranslationEditor({ quizId }: TranslationEditorPro
   const [loading, setLoading] = useState(true)
   const [currentLang, setCurrentLang] = useState<'hu' | 'en'>('hu')
   const [translations, setTranslations] = useState<{ [key: string]: string }>({})
+  const [dirty, setDirty] = useState(false)
+  const [changed, setChanged] = useState<Set<string>>(new Set())
+  const [version, setVersion] = useState(0)
+  // Uncontrolled input refs per field
+  const inputRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({})
+  const FIELD_KEYS = ['landing_headline', 'cta_text', 'meta_title', 'meta_description'] as const
   
   // Use useMemo to prevent client recreation on every render
   const supabase = useMemo(() => createClient(), [])
@@ -38,6 +44,10 @@ export default function SimpleTranslationEditor({ quizId }: TranslationEditorPro
       })
       
       setTranslations(translationMap)
+      setDirty(false)
+      setChanged(new Set())
+      // bump version so uncontrolled inputs reset to latest values
+      setVersion(v => v + 1)
     } catch (error) {
       console.error('Error loading translations:', error)
     } finally {
@@ -45,28 +55,147 @@ export default function SimpleTranslationEditor({ quizId }: TranslationEditorPro
     }
   }
 
-  const updateTranslation = async (fieldKey: string, value: string) => {
+  const onBlurField = (fieldKey: string) => {
+    // mark dirty only on blur to avoid rerenders on each keystroke
+    setDirty(true)
+    setChanged(prev => new Set(prev).add(fieldKey))
+  }
+
+  const saveChanges = useCallback(async () => {
+    if (!dirty || changed.size === 0) return
     try {
+      // Save all fields to be robust even if current field hasn't blurred yet
+      const rows = (FIELD_KEYS as readonly string[]).map((field_key) => ({
+        quiz_id: quizId,
+        lang: currentLang,
+        field_key,
+        value: (inputRefs.current[field_key]?.value ?? translations[field_key] ?? '')
+      }))
       const { error } = await supabase
         .from('quiz_translations')
-        .upsert({
-          quiz_id: quizId,
-          lang: currentLang,
-          field_key: fieldKey,
-          value: value
-        }, {
-          onConflict: 'quiz_id,lang,field_key'
-        })
-
+        .upsert(rows, { onConflict: 'quiz_id,lang,field_key' })
       if (error) throw error
-
-      setTranslations(prev => ({
-        ...prev,
-        [fieldKey]: value
-      }))
+      setDirty(false)
+      setChanged(new Set())
+      // Reload latest values and refresh uncontrolled inputs
+      await loadTranslations()
+      setVersion(v => v + 1)
     } catch (error) {
-      console.error('Error updating translation:', error)
+      console.error('Error saving translations:', error)
     }
+  }, [changed, currentLang, dirty, quizId, supabase, translations])
+
+  const discardChanges = () => {
+    // Reload from server to discard local edits
+    loadTranslations()
+  }
+
+  const switchLang = async (lang: 'hu' | 'en') => {
+    if (dirty && !confirm('Nem mentett módosítások vannak. Elmentsem most?')) {
+      // Discard and switch
+      setDirty(false)
+      setChanged(new Set())
+      setCurrentLang(lang)
+      return
+    }
+    if (dirty) {
+      await saveChanges()
+    }
+    setCurrentLang(lang)
+  }
+
+  // Shadow DOM isolated field to prevent React interference
+  function Field({
+    fieldKey,
+    label,
+    placeholder,
+    type = 'text',
+    rows,
+    initial,
+    version,
+    idAttr,
+    nameAttr,
+  }: {
+    fieldKey: string
+    label: string
+    placeholder?: string
+    type?: 'text'
+    rows?: number
+    initial: string
+    version: number
+    idAttr: string
+    nameAttr: string
+  }) {
+    const hostRef = useRef<HTMLDivElement | null>(null)
+    const shadowRef = useRef<ShadowRoot | null>(null)
+    const elementRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+
+    // Create Shadow DOM once to isolate from React
+    useEffect(() => {
+      if (!hostRef.current || shadowRef.current) return
+
+      const shadow = hostRef.current.attachShadow({ mode: 'open' })
+      shadowRef.current = shadow
+
+      // Apply Tailwind styles within shadow DOM
+      const style = document.createElement('style')
+      style.textContent = `
+        .field-input {
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          border: 1px solid #d1d5db;
+          border-radius: 0.375rem;
+          font-size: 0.875rem;
+          line-height: 1.25rem;
+          outline: none;
+          font-family: inherit;
+        }
+        .field-input:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+      `
+      shadow.appendChild(style)
+
+      const el = rows ? document.createElement('textarea') : document.createElement('input')
+      if (!rows) (el as HTMLInputElement).type = type
+      el.id = idAttr
+      el.setAttribute('name', nameAttr)
+      el.className = 'field-input'
+      if (placeholder) el.setAttribute('placeholder', placeholder)
+      if (rows) (el as HTMLTextAreaElement).rows = rows!
+      el.value = initial || ''
+
+      el.addEventListener('blur', () => onBlurField(fieldKey))
+      shadow.appendChild(el)
+      elementRef.current = el as any
+      inputRefs.current[fieldKey] = el as any
+
+      return () => {
+        try {
+          if (shadowRef.current) {
+            shadowRef.current.innerHTML = ''
+          }
+        } catch {}
+        if (inputRefs.current[fieldKey] === el) inputRefs.current[fieldKey] = null
+        shadowRef.current = null
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    // Update value on version change only
+    useEffect(() => {
+      const el = elementRef.current
+      if (!el) return
+      el.value = initial || ''
+    }, [version, initial])
+
+    return (
+      <div>
+        <label htmlFor={idAttr} className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <div ref={hostRef} />
+      </div>
+    )
   }
 
   if (loading) {
@@ -85,9 +214,9 @@ export default function SimpleTranslationEditor({ quizId }: TranslationEditorPro
   return (
     <div className="space-y-6">
       {/* Language Switcher */}
-      <div className="flex space-x-2">
+      <div className="flex space-x-2 items-center">
         <button
-          onClick={() => setCurrentLang('hu')}
+          onClick={() => switchLang('hu')}
           className={`px-4 py-2 rounded-md ${
             currentLang === 'hu'
               ? 'bg-blue-600 text-white'
@@ -97,7 +226,7 @@ export default function SimpleTranslationEditor({ quizId }: TranslationEditorPro
           Magyar (HU)
         </button>
         <button
-          onClick={() => setCurrentLang('en')}
+          onClick={() => switchLang('en')}
           className={`px-4 py-2 rounded-md ${
             currentLang === 'en'
               ? 'bg-blue-600 text-white'
@@ -106,65 +235,76 @@ export default function SimpleTranslationEditor({ quizId }: TranslationEditorPro
         >
           English (EN)
         </button>
+        <div className="flex-1" />
+        {dirty ? (
+          <span className="text-sm text-amber-700 bg-amber-100 px-2 py-1 rounded">Nem mentett módosítások</span>
+        ) : (
+          <span className="text-sm text-green-700 bg-green-100 px-2 py-1 rounded">Mentve</span>
+        )}
+        <button
+          onClick={saveChanges}
+          disabled={!dirty}
+          className="ml-2 px-3 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50"
+        >
+          Mentés
+        </button>
+        <button
+          onClick={discardChanges}
+          disabled={!dirty}
+          className="ml-2 px-3 py-2 rounded-md bg-gray-200 text-gray-700 disabled:opacity-50"
+        >
+          Elvetés
+        </button>
       </div>
 
       {/* Sample Translation Fields */}
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Landing Page Headline
-          </label>
-          <input
-            type="text"
-            value={translations['landing_headline'] || ''}
-            onChange={(e) => updateTranslation('landing_headline', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter headline..."
-          />
-        </div>
+        <Field
+          fieldKey="landing_headline"
+          label="Landing Page Headline"
+          placeholder="Enter headline..."
+          initial={translations['landing_headline'] ?? ''}
+          version={version}
+          idAttr={`landing_headline-${currentLang}`}
+          nameAttr={`translations[landing_headline]`}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            CTA Button Text
-          </label>
-          <input
-            type="text"
-            value={translations['cta_text'] || ''}
-            onChange={(e) => updateTranslation('cta_text', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter button text..."
-          />
-        </div>
+        <Field
+          fieldKey="cta_text"
+          label="CTA Button Text"
+          placeholder="Enter button text..."
+          initial={translations['cta_text'] ?? ''}
+          version={version}
+          idAttr={`cta_text-${currentLang}`}
+          nameAttr={`translations[cta_text]`}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Meta Title
-          </label>
-          <input
-            type="text"
-            value={translations['meta_title'] || ''}
-            onChange={(e) => updateTranslation('meta_title', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter meta title..."
-          />
-        </div>
+        <Field
+          fieldKey="meta_title"
+          label="Meta Title"
+          placeholder="Enter meta title..."
+          initial={translations['meta_title'] ?? ''}
+          version={version}
+          idAttr={`meta_title-${currentLang}`}
+          nameAttr={`translations[meta_title]`}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Meta Description
-          </label>
-          <textarea
-            value={translations['meta_description'] || ''}
-            onChange={(e) => updateTranslation('meta_description', e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter meta description..."
-          />
-        </div>
+        <Field
+          fieldKey="meta_description"
+          label="Meta Description"
+          placeholder="Enter meta description..."
+          rows={3}
+          initial={translations['meta_description'] ?? ''}
+          version={version}
+          idAttr={`meta_description-${currentLang}`}
+          nameAttr={`translations[meta_description]`}
+        />
       </div>
 
-      <div className="text-sm text-gray-500">
-        Current Language: {currentLang.toUpperCase()} | Quiz ID: {quizId}
+      <div className="text-sm text-gray-500 flex items-center gap-3">
+        <span>Current Language: {currentLang.toUpperCase()}</span>
+        <span>Quiz ID: {quizId}</span>
+        <span>Változtatott mezők: {changed.size}</span>
       </div>
     </div>
   )

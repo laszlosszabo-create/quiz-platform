@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import SimpleTranslationEditor from '@/app/admin/components/simple-translation-editor'
 
 interface TranslationPageProps {
   params: Promise<{
@@ -51,11 +50,19 @@ export default function TranslationPage({ params }: TranslationPageProps) {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Fordítás kezelés</h1>
         <p className="text-gray-600 mt-1">
-          Szerkeszd a quiz szövegeit különböző nyelveken. Az automatikus mentés aktiválódik szöveg módosításkor.
+          Szerkeszd a quiz szövegeit különböző nyelveken. A módosítások csak a Mentés gombra kattintva kerülnek elmentésre.
         </p>
       </div>
 
-      <SimpleTranslationEditor quizId={quizId} />
+      {/* Embed native editor in iframe to isolate from React */}
+      <div className="border rounded-lg overflow-hidden bg-white">
+        <iframe
+          src={`/admin/quizzes/${quizId}/translations/native`}
+          className="w-full border-0"
+          style={{ height: '800px', minHeight: '600px' }}
+          title="Translation Editor"
+        />
+      </div>
     </div>
   )
 }

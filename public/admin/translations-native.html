@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Editor - Translation Tab (Native)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-6xl mx-auto p-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">🌐 Fordítások szerkesztő</h2>
+            
+            <!-- Language switcher -->
+            <div class="flex bg-gray-100 rounded-lg p-1">
+                <button id="btn-hu" class="px-3 py-1 rounded text-sm font-medium bg-white text-gray-900 shadow-sm">
+                    🇭🇺 Magyar
+                </button>
+                <button id="btn-en" class="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900">
+                    🇬🇧 Angol
+                </button>
+            </div>
+        </div>
+
+        <!-- Translation sections -->
+        <div id="translation-sections"></div>
+
+        <!-- Status and Actions -->
+        <div class="fixed bottom-4 right-4 flex items-center gap-3 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+            <span id="status" class="text-sm text-green-700">Mentve</span>
+            <button id="btn-save" class="px-3 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50" disabled>
+                Mentés
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Get quiz ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizId = urlParams.get('id');
+        
+        let currentLang = 'hu';
+        let dirty = false;
+        let translations = { hu: {}, en: {} };
+        
+        // All translation fields matching TranslationEditor component
+        const translationFields = [
+            // Landing Page
+            { key: 'landing_headline', label: 'Landing headline', category: 'Landing Page' },
+            { key: 'landing_sub', label: 'Landing alcím', category: 'Landing Page' },
+            { key: 'landing_description', label: 'Landing leírás', category: 'Landing Page', multiline: true },
+            { key: 'meta_title', label: 'Meta title (SEO)', category: 'Landing Page' },
+            { key: 'meta_description', label: 'Meta description (SEO)', category: 'Landing Page', multiline: true },
+            
+            // Social Proof
+            { key: 'social_proof_title', label: 'Social proof cím', category: 'Social Proof' },
+            { key: 'social_proof_subtitle', label: 'Social proof alcím', category: 'Social Proof' },
+            
+            // Email Gate
+            { key: 'email_gate_title', label: 'Email gate cím', category: 'Email Gate' },
+            { key: 'email_gate_subtitle', label: 'Email gate alcím', category: 'Email Gate' },
+            { key: 'email_gate_button', label: 'Email gate gomb', category: 'Email Gate' },
+            { key: 'email_gate_disclaimer', label: 'Email gate figyelmeztetés', category: 'Email Gate', multiline: true },
+            
+            // Quiz
+            { key: 'quiz_start_button', label: 'Kvíz start gomb', category: 'Quiz' },
+            { key: 'quiz_next_button', label: 'Kvíz tovább gomb', category: 'Quiz' },
+            { key: 'quiz_previous_button', label: 'Kvíz vissza gomb', category: 'Quiz' },
+            { key: 'quiz_submit_button', label: 'Kvíz beküldés gomb', category: 'Quiz' },
+            
+            // Result Page
+            { key: 'result_title', label: 'Eredmény cím', category: 'Result Page' },
+            { key: 'result_subtitle', label: 'Eredmény alcím', category: 'Result Page' },
+            { key: 'result_description', label: 'Eredmény leírás', category: 'Result Page', multiline: true },
+            { key: 'result_cta_button', label: 'Eredmény CTA gomb', category: 'Result Page' },
+            { key: 'result_share_title', label: 'Megosztás cím', category: 'Result Page' },
+            
+            // Email Templates
+            { key: 'email_subject', label: 'Email tárgy', category: 'Email Templates' },
+            { key: 'email_greeting', label: 'Email üdvözlés', category: 'Email Templates' },
+            { key: 'email_intro', label: 'Email bevezető', category: 'Email Templates', multiline: true },
+            { key: 'email_result_intro', label: 'Email eredmény bevezető', category: 'Email Templates' },
+            { key: 'email_cta_text', label: 'Email CTA szöveg', category: 'Email Templates' },
+            { key: 'email_cta_button', label: 'Email CTA gomb', category: 'Email Templates' },
+            { key: 'email_footer', label: 'Email lábléc', category: 'Email Templates', multiline: true }
+        ];
+
+        // Group fields by category
+        const categorizedFields = translationFields.reduce((acc, field) => {
+            if (!acc[field.category]) acc[field.category] = [];
+            acc[field.category].push(field);
+            return acc;
+        }, {});
+
+        // Elements
+        const btnHu = document.getElementById('btn-hu');
+        const btnEn = document.getElementById('btn-en');
+        const btnSave = document.getElementById('btn-save');
+        const status = document.getElementById('status');
+        const sectionsContainer = document.getElementById('translation-sections');
+
+        // Load translations
+        async function loadTranslations() {
+            try {
+                const response = await fetch(`/api/admin/quizzes/${quizId}`);
+                if (!response.ok) throw new Error('Failed to load quiz');
+                
+                const data = await response.json();
+                translations = data.translations || { hu: {}, en: {} };
+                
+                renderFields();
+                setClean();
+            } catch (error) {
+                console.error('Error loading translations:', error);
+                alert('Hiba a fordítások betöltésekor: ' + error.message);
+            }
+        }
+
+        // Save translations
+        async function saveTranslations() {
+            if (!dirty) return;
+            
+            try {
+                // Collect all field values
+                translationFields.forEach(field => {
+                    const input = document.getElementById(`field-${field.key}`);
+                    if (input && input.value !== undefined) {
+                        if (!translations[currentLang]) translations[currentLang] = {};
+                        translations[currentLang][field.key] = input.value;
+                    }
+                });
+
+                const response = await fetch(`/api/admin/quizzes/${quizId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ translations })
+                });
+
+                if (!response.ok) throw new Error('Failed to save');
+                
+                setClean();
+                
+                // Notify parent component if embedded
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ 
+                        type: 'translationsSaved', 
+                        translations: translations 
+                    }, '*');
+                }
+                
+                alert('Fordítások elmentve!');
+            } catch (error) {
+                console.error('Error saving translations:', error);
+                alert('Mentési hiba: ' + error.message);
+            }
+        }
+
+        // Render form fields
+        function renderFields() {
+            sectionsContainer.innerHTML = '';
+            
+            Object.entries(categorizedFields).forEach(([category, fields]) => {
+                const section = document.createElement('div');
+                section.className = 'bg-white rounded-lg border border-gray-200 shadow-sm mb-6';
+                
+                section.innerHTML = `
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">${category}</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        ${fields.map(field => createFieldHTML(field)).join('')}
+                    </div>
+                `;
+                
+                sectionsContainer.appendChild(section);
+            });
+            
+            // Add event listeners
+            translationFields.forEach(field => {
+                const input = document.getElementById(`field-${field.key}`);
+                if (input) {
+                    input.addEventListener('input', () => onFieldChange(field.key));
+                }
+            });
+        }
+
+        // Create HTML for a single field
+        function createFieldHTML(field) {
+            const currentValue = translations[currentLang]?.[field.key] || '';
+            const isMissing = !currentValue.trim();
+            
+            return `
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        ${field.label}
+                        ${isMissing ? '<span class="ml-2 text-orange-500">⚠️</span>' : ''}
+                    </label>
+                    ${field.multiline ? `
+                        <textarea
+                            id="field-${field.key}"
+                            rows="3"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMissing ? 'border-orange-300 bg-orange-50' : 'border-gray-300'}"
+                            placeholder="${field.label} ${currentLang.toUpperCase()} nyelven..."
+                        >${currentValue}</textarea>
+                    ` : `
+                        <input
+                            type="text"
+                            id="field-${field.key}"
+                            value="${currentValue}"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMissing ? 'border-orange-300 bg-orange-50' : 'border-gray-300'}"
+                            placeholder="${field.label} ${currentLang.toUpperCase()} nyelven..."
+                        />
+                    `}
+                </div>
+            `;
+        }
+
+        // Mark field as changed
+        function onFieldChange(fieldKey) {
+            dirty = true;
+            updateUI();
+        }
+
+        // Update UI
+        function updateUI() {
+            status.textContent = dirty ? 'Nem mentett módosítások' : 'Mentve';
+            status.className = dirty ? 
+                'text-sm text-amber-700' : 'text-sm text-green-700';
+            
+            btnSave.disabled = !dirty;
+        }
+
+        // Set clean state
+        function setClean() {
+            dirty = false;
+            updateUI();
+        }
+
+        // Switch language
+        function switchLanguage(lang) {
+            if (dirty && !confirm('Nem mentett módosítások vannak. Elmentsem most?')) {
+                return;
+            }
+            if (dirty) {
+                saveTranslations();
+                return;
+            }
+            
+            currentLang = lang;
+            
+            // Update button styles
+            if (lang === 'hu') {
+                btnHu.className = 'px-3 py-1 rounded text-sm font-medium bg-white text-gray-900 shadow-sm';
+                btnEn.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
+            } else {
+                btnEn.className = 'px-3 py-1 rounded text-sm font-medium bg-white text-gray-900 shadow-sm';
+                btnHu.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
+            }
+            
+            renderFields();
+        }
+
+        // Event listeners
+        btnHu.addEventListener('click', () => switchLanguage('hu'));
+        btnEn.addEventListener('click', () => switchLanguage('en'));
+        btnSave.addEventListener('click', saveTranslations);
+
+        // Initial load
+        if (quizId) {
+            loadTranslations();
+        } else {
+            alert('Quiz ID not found in URL parameters');
+        }
+    </script>
+</body>
+</html>

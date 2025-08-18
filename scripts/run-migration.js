@@ -25,6 +25,13 @@ const admin = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false }
 })
 
+// Debug diagnostics for CI: show which Supabase host and key prefix are used
+try {
+  const urlHost = new URL(supabaseUrl).host
+  const keyPreview = String(serviceKey).slice(0, 6)
+  console.log(`🔐 Migration using Supabase: host=${urlHost}, service_key_prefix=${keyPreview}******`)
+} catch {}
+
 function stripLeadingComments(block) {
   const lines = block.split(/\n/)
   while (lines.length && (lines[0].trim().startsWith('--') || lines[0].trim() === '')) {

@@ -19,10 +19,19 @@ Notes:
 - Seed: PASS — TEST_QUIZ_ID=474c52bb-c907-40c4-8cb1-993cfcdf2f38, TEST_SESSION_ID=fa56c55e-3c3b-4caf-8ca2-d68ea71a63ae, TEST_LANG=en (2025-08-18T00:00:00Z)
 - Schema cache probe: PASS — PGRST204=0 (2025-08-18T00:00:00Z)
 - Helyi acceptance (mock): 404/200 PASS (2025-08-18T00:00:00Z)
-- CI: wired, pending — első futás korábban FAIL (2025-08-18 12:13:24Z) hiányzó NEXT_PUBLIC_SUPABASE_ANON_KEY miatt; workflow YAML javítva, újrafuttatás szükséges
+- CI: PASS — Build/Start/Wait/Migrate(semi)/Seed/Acceptance (mock) mind zöld (2025-08-18 14:05:08Z UTC)
 - Migráció: RPC helper hiányzik; nem blokkoló. SQL Editor út rendelkezésre áll (helyi sémacache PASS).
 - Hardcoded prompt: PASS (csak canonical `ai_prompt`)
 - quiz_sessions JSONB defaultok + cache refresh: PASS (helyi sémacache próba alapján nincs PGRST204)
+
+### Translations – minimál acceptance (új)
+- Local smoke: PASS — lefutott `npm run test:accept:translations` (ellenőrizve: bulk save/readback, missing list számítás, landing HU/EN SSR headline). Eredmény: QUIZ_ID=474c52bb-c907-40c4-8cb1-993cfcdf2f38, missingHu=0, missingEn=0.
+- CI: Pending — opcionális külön job (következő körben bekötve)
+- Kritériumok:
+	- Bulk mentés → azonnali readback HU/EN
+	- „Hiányzó fordítások” számítása (legalább kulcsok: landing_headline, landing_sub, cta_text)
+	- Landing oldal SSR HTML tartalmazza az új headline-t HU és EN útvonalon
+	- Audit log bejegyzés a mentés(ek) után (best-effort)
 
 How to verify locally:
 - Seed + test (mock): `npm run accept:ai:local`
@@ -33,7 +42,8 @@ How to verify locally:
 - 2025-08-18 – Seed: PASS — TEST_QUIZ_ID=474c52bb-c907-40c4-8cb1-993cfcdf2f38, TEST_SESSION_ID=fa56c55e-3c3b-4caf-8ca2-d68ea71a63ae, TEST_LANG=en
 - 2025-08-18 – Helyi mock acceptance: PASS (404/200) – megerősítve
 - 2025-08-18 – Schema cache probe: PASS (nincs PGRST204 a `scores`/`result_snapshot` frissítéskor)
-- 2025-08-18 – CI workflow: wired, pending (első körben FAIL: 2025-08-18 12:13:24Z UTC – Missing NEXT_PUBLIC_SUPABASE_ANON_KEY); újraindítás titok beállítása után
+- 2025-08-18 – CI workflow: PASS (14:05:08Z UTC) — Acceptance (mock) sikeres; Supabase secrets frissítve. headSha=d8eaea8af90d26d3228e5afee468ab0c433778ef
+- 2025-08-18 – Translations acceptance: PASS (lokális smoke) — bulk save/readback + SSR HU/EN headline ellenőrzés zöld
 # Admin Panel Quality Gates and Bug Ledger (2025-08-16)
 
 Use this living checklist to track readiness across the critical areas. Status legend: [x]=Green, [~]=Yellow, [ ]=Red.
