@@ -16,9 +16,11 @@ Notes:
 
 ## Acceptance status summary (2025-08-18)
 
-- Helyi acceptance (mock): 404/200 PASS (megerősítve)
-- CI: bekötve, első futás elindítva (mock) – eredmény függőben
-- Migráció: file jelen van; SQL Editoron keresztül alkalmazva – pontos dátum/idő + környezet: (kérjük megadni)
+- Seed: PASS — TEST_QUIZ_ID=474c52bb-c907-40c4-8cb1-993cfcdf2f38, TEST_SESSION_ID=fa56c55e-3c3b-4caf-8ca2-d68ea71a63ae, TEST_LANG=en (2025-08-18T00:00:00Z)
+- Schema cache probe: PASS — PGRST204=0 (2025-08-18T00:00:00Z)
+- Helyi acceptance (mock): 404/200 PASS (2025-08-18T00:00:00Z)
+- CI: wired, pending — első futás korábban FAIL (2025-08-18 12:13:24Z) hiányzó NEXT_PUBLIC_SUPABASE_ANON_KEY miatt; workflow YAML javítva, újrafuttatás szükséges
+- Migráció: RPC helper hiányzik; nem blokkoló. SQL Editor út rendelkezésre áll (helyi sémacache PASS).
 - Hardcoded prompt: PASS (csak canonical `ai_prompt`)
 - quiz_sessions JSONB defaultok + cache refresh: PASS (helyi sémacache próba alapján nincs PGRST204)
 
@@ -28,9 +30,10 @@ How to verify locally:
 
 ## Állapotnapló (2025-08-18)
 
+- 2025-08-18 – Seed: PASS — TEST_QUIZ_ID=474c52bb-c907-40c4-8cb1-993cfcdf2f38, TEST_SESSION_ID=fa56c55e-3c3b-4caf-8ca2-d68ea71a63ae, TEST_LANG=en
 - 2025-08-18 – Helyi mock acceptance: PASS (404/200) – megerősítve
 - 2025-08-18 – Schema cache probe: PASS (nincs PGRST204 a `scores`/`result_snapshot` frissítéskor)
-- 2025-08-18 – CI workflow: első futás elindítva (mock), eredmény függőben – frissítendő PASS/FAIL + UTC időbélyeggel
+- 2025-08-18 – CI workflow: wired, pending (első körben FAIL: 2025-08-18 12:13:24Z UTC – Missing NEXT_PUBLIC_SUPABASE_ANON_KEY); újraindítás titok beállítása után
 # Admin Panel Quality Gates and Bug Ledger (2025-08-16)
 
 Use this living checklist to track readiness across the critical areas. Status legend: [x]=Green, [~]=Yellow, [ ]=Red.
