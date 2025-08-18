@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 interface Product {
   id: string
   quiz_id: string
+  name?: string // From database schema
+  description?: string // From database schema
   active: boolean
   price: number
   currency: 'HUF' | 'EUR' | 'USD'
@@ -23,8 +25,10 @@ interface Product {
   stripe_price_id?: string
   delivery_type: 'static_pdf' | 'ai_generated' | 'link'
   asset_url?: string
-  translations: {
-    hu: {
+  booking_url?: string
+  metadata?: any
+  translations?: {
+    hu?: {
       name: string
       description?: string
     }
@@ -108,7 +112,17 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
       const response = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({...formData, quiz_id: quizData.id})
+        body: JSON.stringify({
+          quiz_id: quizData.id,
+          name: formData.translations.hu.name,
+          description: formData.translations.hu.description,
+          price: formData.price,
+          currency: formData.currency,
+          active: formData.active,
+          stripe_product_id: formData.stripe_product_id,
+          stripe_price_id: formData.stripe_price_id,
+          booking_url: formData.asset_url // Using asset_url as booking_url for compatibility
+        })
       })
 
       if (!response.ok) {
@@ -141,7 +155,16 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
       const response = await fetch(`/api/admin/products/${editingProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.translations.hu.name,
+          description: formData.translations.hu.description,
+          price: formData.price,
+          currency: formData.currency,
+          active: formData.active,
+          stripe_product_id: formData.stripe_product_id,
+          stripe_price_id: formData.stripe_price_id,
+          booking_url: formData.asset_url
+        })
       })
 
       if (!response.ok) {
@@ -221,12 +244,12 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
       asset_url: product.asset_url || '',
       translations: {
         hu: {
-          name: product.translations.hu.name,
-          description: product.translations.hu.description || ''
+          name: product.translations?.hu?.name || product.name || '',
+          description: product.translations?.hu?.description || product.description || ''
         },
         en: {
-          name: product.translations.en?.name || '',
-          description: product.translations.en?.description || ''
+          name: product.translations?.en?.name || '',
+          description: product.translations?.en?.description || ''
         }
       }
     })
@@ -323,7 +346,9 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-lg mb-1">{product.translations.hu.name}</CardTitle>
+                    <CardTitle className="text-lg mb-1">
+                      {product.translations?.hu?.name || product.name || 'Névtelen termék'}
+                    </CardTitle>
                     <CardDescription className="text-sm">
                       {product.delivery_type === 'ai_generated' && 'AI Generált'}
                       {product.delivery_type === 'static_pdf' && 'Statikus PDF'}
@@ -342,9 +367,9 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
               
               <CardContent className="pt-0">
                 <div className="space-y-3">
-                  {product.translations.hu.description && (
+                  {(product.translations?.hu?.description || product.description) && (
                     <p className="text-sm text-gray-600 line-clamp-2">
-                      {product.translations.hu.description}
+                      {product.translations?.hu?.description || product.description}
                     </p>
                   )}
                   
@@ -395,7 +420,7 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
             <DialogHeader>
               <DialogTitle>Termék szerkesztése</DialogTitle>
               <DialogDescription>
-                {editingProduct.translations.hu.name} adatainak módosítása
+                {editingProduct.translations?.hu?.name || editingProduct.name || 'Termék'} adatainak módosítása
               </DialogDescription>
             </DialogHeader>
             <ProductForm 

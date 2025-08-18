@@ -16,7 +16,36 @@ export default function SimpleTranslationEditor({ quizId }: TranslationEditorPro
   const [version, setVersion] = useState(0)
   // Uncontrolled input refs per field
   const inputRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({})
-  const FIELD_KEYS = ['landing_headline', 'cta_text', 'meta_title', 'meta_description'] as const
+  const FIELD_KEYS = [
+    // Legacy/basic
+    'landing_headline', 'landing_sub', 'cta_text', 'landing_cta_text', 'meta_title', 'meta_description',
+    
+    // Hero szekció  
+    'landing_hero_title', 'landing_hero_sub', 'landing_hero_note',
+    'landing_badge_1', 'landing_badge_2', 'landing_badge_3',
+    'landing_time_estimate', 'landing_question_count',
+    
+    // CTA gombok
+    'landing_cta_primary', 'landing_cta_secondary', 'landing_cta_mid',
+    'landing_cta_urgency', 'landing_final_cta_button',
+    
+    // Statisztikák
+    'landing_stats_title', 'landing_stats_desc',
+    'landing_stat_1_number', 'landing_stat_1_label', 'landing_stat_2_number', 'landing_stat_2_label',
+    'landing_stat_3_number', 'landing_stat_3_label', 'landing_stat_4_number', 'landing_stat_4_label',
+    
+    // Trust/Előnyök
+    'landing_trust_section_title', 'landing_trust_section_desc',
+    'landing_trust_item_1_title', 'landing_trust_item_1_desc',
+    'landing_trust_item_2_title', 'landing_trust_item_2_desc', 
+    'landing_trust_item_3_title', 'landing_trust_item_3_desc',
+    
+    // Hogyan működik
+    'landing_how_section_title', 'landing_how_section_desc',
+    'landing_how_1_title', 'landing_how_1_desc',
+    'landing_how_2_title', 'landing_how_2_desc',
+    'landing_how_3_title', 'landing_how_3_desc'
+  ] as const
   
   // Use useMemo to prevent client recreation on every render
   const supabase = useMemo(() => createClient(), [])

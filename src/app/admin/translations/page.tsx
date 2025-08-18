@@ -50,15 +50,24 @@ export default function TranslationsManagementPage() {
   const [loading, setLoading] = useState(true)
   const [selectedLanguage, setSelectedLanguage] = useState<'hu' | 'en'>('hu')
 
-  // Required translation fields for validation
+  // Required translation fields for validation (prioritás szerint)
   const requiredFields = [
-    'landing_headline',
-    'landing_sub', 
-    'landing_description',
-    'email_gate_title',
-    'email_gate_button',
-    'result_title',
-    'result_description'
+    // Magas prioritás - alapok
+    'landing_headline', 'landing_hero_title', 'landing_hero_sub', 'landing_cta_primary',
+    'meta_title', 'meta_description',
+    
+    // Közepes prioritás - konverzió
+    'landing_trust_item_1_title', 'landing_trust_item_1_desc',
+    'landing_trust_item_2_title', 'landing_trust_item_2_desc', 
+    'landing_trust_item_3_title', 'landing_trust_item_3_desc',
+    'landing_how_1_title', 'landing_how_1_desc',
+    'landing_how_2_title', 'landing_how_2_desc',
+    'landing_how_3_title', 'landing_how_3_desc',
+    'landing_stats_title', 'landing_stats_desc',
+    
+    // Legacy - kompatibilitás
+    'landing_sub', 'landing_description', 'cta_text',
+    'email_gate_title', 'email_gate_button', 'result_title', 'result_description'
   ]
 
   useEffect(() => {

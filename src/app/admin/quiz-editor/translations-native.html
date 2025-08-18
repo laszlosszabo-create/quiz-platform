@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Editor - Translation Tab (Native)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-6xl mx-auto p-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">🌐 Fordítások szerkesztő</h2>
+            
+            <!-- Language switcher -->
+            <div class="flex bg-gray-100 rounded-lg p-1">
+                <button id="btn-hu" class="px-3 py-1 rounded text-sm font-medium bg-white text-gray-900 shadow-sm">
+                    🇭🇺 Magyar
+                </button>
+                <button id="btn-en" class="px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900">
+                    🇬🇧 Angol
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                    <div id="hu-count" class="text-2xl font-bold text-blue-900">0</div>
+                    <div class="text-sm text-blue-700">Magyar fordítások</div>
+                </div>
+                <div>
+                    <div id="en-count" class="text-2xl font-bold text-blue-900">0</div>
+                    <div class="text-sm text-blue-700">Angol fordítások</div>
+                </div>
+                <div>
+                    <div id="missing-count" class="text-2xl font-bold text-orange-900">0</div>
+                    <div class="text-sm text-orange-700">Hiányzó (<span id="current-lang-display">HU</span>)</div>
+                </div>
+                <div>
+                    <div id="complete-percent" class="text-2xl font-bold text-green-900">0%</div>
+                    <div class="text-sm text-green-700">Kész (<span id="current-lang-display2">HU</span>)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Translation sections -->
+        <div id="translation-sections"></div>
+
+        <!-- Status and Actions -->
+        <div class="fixed bottom-4 right-4 flex items-center gap-3 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+            <span id="status" class="text-sm text-green-700">Mentve</span>
+            <button id="btn-save" class="px-3 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50" disabled>
+                Mentés
+            </button>
+        </div>
+
+        <!-- Help -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
+            <h4 class="font-medium text-gray-900 mb-2">💡 Tippek</h4>
+            <ul class="text-sm text-gray-700 space-y-1">
+                <li>• A ⚠️ ikon hiányzó fordításokat jelöl</li>
+                <li>• A "📋 Másolás alapnyelvből" gombbal gyorsan átveheted az alap szöveget</li>
+                <li>• Email változók: használd a {{variable_name}} formátumot</li>
+                <li>• A módosítások csak a Mentés gomb megnyomásakor lesznek elmentve</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Get quiz ID from parent or URL
+        const quizId = new URLSearchParams(window.location.search).get('id') || window.parent?.quizId;
+        
+        let currentLang = 'hu';
+        let dirty = false;
+        let translations = { hu: {}, en: {} };
+        
+        const translationFields = [
+            // Landing (LP) - new structured fields
+            { key: 'landing_hero_title', label: 'LP: Hero cím', category: 'Landing (LP)' },
+            { key: 'landing_hero_sub', label: 'LP: Hero alcím', category: 'Landing (LP)', multiline: true },
+            { key: 'hero_image_alt', label: 'LP: Hero kép alt szöveg', category: 'Landing (LP)' },
+            { key: 'landing_badge_1', label: 'LP: Badge 1', category: 'Landing (LP)' },
+            { key: 'landing_badge_2', label: 'LP: Badge 2', category: 'Landing (LP)' },
+            { key: 'landing_badge_3', label: 'LP: Badge 3', category: 'Landing (LP)' },
+            { key: 'landing_cta_primary', label: 'LP: CTA elsődleges', category: 'Landing (LP)' },
+            { key: 'landing_cta_secondary', label: 'LP: CTA másodlagos', category: 'Landing (LP)' },
+            { key: 'landing_trust_item_1', label: 'LP: Trust elem 1', category: 'Landing (LP)' },
+            { key: 'landing_trust_item_2', label: 'LP: Trust elem 2', category: 'Landing (LP)' },
+            { key: 'landing_trust_item_3', label: 'LP: Trust elem 3', category: 'Landing (LP)' },
+            { key: 'landing_how_1', label: 'LP: How #1', category: 'Landing (LP)' },
+            { key: 'landing_how_2', label: 'LP: How #2', category: 'Landing (LP)' },
+            { key: 'landing_how_3', label: 'LP: How #3', category: 'Landing (LP)' },
+            { key: 'landing_testimonial_1_quote', label: 'LP: Testimonial 1 idézet', category: 'Landing (LP)', multiline: true },
+            { key: 'landing_testimonial_1_author', label: 'LP: Testimonial 1 szerző', category: 'Landing (LP)' },
+            { key: 'landing_testimonial_2_quote', label: 'LP: Testimonial 2 idézet', category: 'Landing (LP)', multiline: true },
+            { key: 'landing_testimonial_2_author', label: 'LP: Testimonial 2 szerző', category: 'Landing (LP)' },
+            { key: 'landing_testimonial_3_quote', label: 'LP: Testimonial 3 idézet', category: 'Landing (LP)', multiline: true },
+            { key: 'landing_testimonial_3_author', label: 'LP: Testimonial 3 szerző', category: 'Landing (LP)' },
+            { key: 'landing_faq_1_q', label: 'LP: FAQ 1 kérdés', category: 'Landing (LP)' },
+            { key: 'landing_faq_1_a', label: 'LP: FAQ 1 válasz', category: 'Landing (LP)', multiline: true },
+            { key: 'landing_faq_2_q', label: 'LP: FAQ 2 kérdés', category: 'Landing (LP)' },
+            { key: 'landing_faq_2_a', label: 'LP: FAQ 2 válasz', category: 'Landing (LP)', multiline: true },
+            { key: 'landing_faq_3_q', label: 'LP: FAQ 3 kérdés', category: 'Landing (LP)' },
+            { key: 'landing_faq_3_a', label: 'LP: FAQ 3 válasz', category: 'Landing (LP)', multiline: true },
+            { key: 'landing_disclaimer', label: 'LP: Jogi nyilatkozat', category: 'Landing (LP)', multiline: true },
+
+            // Landing page (legacy/basic) fields kept for compatibility
+            { key: 'landing_headline', label: 'Landing headline', category: 'Landing Page' },
+            { key: 'landing_sub', label: 'Landing alcím', category: 'Landing Page' },
+            { key: 'landing_description', label: 'Landing leírás', category: 'Landing Page', multiline: true },
+            { key: 'landing_cta_text', label: 'Landing CTA szöveg', category: 'Landing Page' },
+            { key: 'meta_title', label: 'Meta title (SEO)', category: 'Landing Page' },
+            { key: 'meta_description', label: 'Meta description (SEO)', category: 'Landing Page', multiline: true },
+            
+            // Social proof
+            { key: 'social_proof_1', label: 'Social proof 1', category: 'Social Proof' },
+            { key: 'social_proof_2', label: 'Social proof 2', category: 'Social Proof' },
+            { key: 'social_proof_3', label: 'Social proof 3', category: 'Social Proof' },
+            
+            // Email gate
+            { key: 'email_gate_headline', label: 'Email gate headline', category: 'Email Gate' },
+            { key: 'email_gate_description', label: 'Email gate leírás', category: 'Email Gate', multiline: true },
+            { key: 'email_field_placeholder', label: 'Email mező placeholder', category: 'Email Gate' },
+            { key: 'name_field_placeholder', label: 'Név mező placeholder', category: 'Email Gate' },
+            { key: 'email_gate_submit_button', label: 'Submit gomb szöveg', category: 'Email Gate' },
+            { key: 'email_gate_privacy_text', label: 'Adatvédelmi szöveg', category: 'Email Gate', multiline: true },
+            
+            // Result page
+            { key: 'result_headline', label: 'Eredmény headline', category: 'Result Page' },
+            { key: 'result_sub', label: 'Eredmény alcím', category: 'Result Page' },
+            { key: 'result_ai_loading', label: 'AI loading szöveg', category: 'Result Page' },
+            { key: 'result_booking_headline', label: 'Foglalás headline', category: 'Result Page' },
+            { key: 'result_booking_cta', label: 'Foglalás gomb', category: 'Result Page' },
+            { key: 'result_product_headline', label: 'Termék headline', category: 'Result Page' },
+            { key: 'result_product_cta', label: 'Termék gomb', category: 'Result Page' },
+        ];
+
+        // Group fields by category
+        const categorizedFields = translationFields.reduce((acc, field) => {
+            if (!acc[field.category]) acc[field.category] = [];
+            acc[field.category].push(field);
+            return acc;
+        }, {});
+
+        // Elements
+        const btnHu = document.getElementById('btn-hu');
+        const btnEn = document.getElementById('btn-en');
+        const btnSave = document.getElementById('btn-save');
+        const status = document.getElementById('status');
+        const sectionsContainer = document.getElementById('translation-sections');
+
+        // Load translations
+        async function loadTranslations() {
+            try {
+                const response = await fetch(`/api/admin/quizzes/${quizId}`);
+                if (!response.ok) throw new Error('Failed to load quiz');
+                
+                const data = await response.json();
+                translations = data.translations || { hu: {}, en: {} };
+                
+                renderFields();
+                updateStats();
+                setClean();
+            } catch (error) {
+                console.error('Error loading translations:', error);
+                alert('Hiba a fordítások betöltésekor: ' + error.message);
+            }
+        }
+
+        // Save translations
+        async function saveTranslations() {
+            if (!dirty) return;
+            
+            try {
+                // Collect all field values
+                translationFields.forEach(field => {
+                    const input = document.getElementById(`field-${field.key}`);
+                    if (input && input.value !== undefined) {
+                        if (!translations[currentLang]) translations[currentLang] = {};
+                        translations[currentLang][field.key] = input.value;
+                    }
+                });
+
+                const response = await fetch(`/api/admin/quizzes/${quizId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ translations })
+                });
+
+                if (!response.ok) throw new Error('Failed to save');
+                
+                setClean();
+                // Notify parent component if embedded
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'translationsSaved', translations }, '*');
+                }
+            } catch (error) {
+                console.error('Error saving translations:', error);
+                alert('Mentési hiba: ' + error.message);
+            }
+        }
+
+        // Render form fields
+        function renderFields() {
+            sectionsContainer.innerHTML = '';
+            
+            Object.entries(categorizedFields).forEach(([category, fields]) => {
+                const section = document.createElement('div');
+                section.className = 'bg-white rounded-lg border border-gray-200 shadow-sm mb-6';
+                
+                section.innerHTML = `
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">${category}</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        ${fields.map(field => createFieldHTML(field)).join('')}
+                    </div>
+                `;
+                
+                sectionsContainer.appendChild(section);
+            });
+            
+            // Add event listeners
+            translationFields.forEach(field => {
+                const input = document.getElementById(`field-${field.key}`);
+                if (input) {
+                    input.addEventListener('input', () => onFieldChange(field.key));
+                }
+            });
+        }
+
+        // Create HTML for a single field
+        function createFieldHTML(field) {
+            const currentValue = translations[currentLang]?.[field.key] || '';
+            const isMissing = !currentValue.trim();
+            const hasDefault = translations.hu?.[field.key]?.trim();
+            
+            return `
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-medium text-gray-700">
+                            ${field.label}
+                            ${isMissing ? '<span class="ml-2 text-orange-500">⚠️</span>' : ''}
+                        </label>
+                        ${hasDefault && currentLang !== 'hu' ? `
+                            <button onclick="copyFromDefault('${field.key}')" class="text-xs text-blue-600 hover:text-blue-800">
+                                📋 Másolás alapnyelvből
+                            </button>
+                        ` : ''}
+                    </div>
+                    ${field.multiline ? `
+                        <textarea
+                            id="field-${field.key}"
+                            rows="3"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMissing ? 'border-orange-300 bg-orange-50' : 'border-gray-300'}"
+                            placeholder="${field.label} ${currentLang.toUpperCase()} nyelven..."
+                        >${currentValue}</textarea>
+                    ` : `
+                        <input
+                            type="text"
+                            id="field-${field.key}"
+                            value="${currentValue}"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMissing ? 'border-orange-300 bg-orange-50' : 'border-gray-300'}"
+                            placeholder="${field.label} ${currentLang.toUpperCase()} nyelven..."
+                        />
+                    `}
+                </div>
+            `;
+        }
+
+        // Copy from default language
+        function copyFromDefault(fieldKey) {
+            const defaultValue = translations.hu?.[fieldKey] || '';
+            if (defaultValue && currentLang !== 'hu') {
+                const input = document.getElementById(`field-${fieldKey}`);
+                if (input) {
+                    input.value = defaultValue;
+                    onFieldChange(fieldKey);
+                }
+            }
+        }
+
+        // Mark field as changed
+        function onFieldChange(fieldKey) {
+            dirty = true;
+            updateUI();
+        }
+
+        // Update UI
+        function updateUI() {
+            status.textContent = dirty ? 'Nem mentett módosítások' : 'Mentve';
+            status.className = dirty ? 
+                'text-sm text-amber-700' : 'text-sm text-green-700';
+            
+            btnSave.disabled = !dirty;
+        }
+
+        // Update stats
+        function updateStats() {
+            const huCount = Object.keys(translations.hu || {}).filter(k => translations.hu[k]?.trim()).length;
+            const enCount = Object.keys(translations.en || {}).filter(k => translations.en[k]?.trim()).length;
+            const totalFields = translationFields.length;
+            const currentCount = Object.keys(translations[currentLang] || {}).filter(k => translations[currentLang][k]?.trim()).length;
+            const missingCount = totalFields - currentCount;
+            const completePercent = Math.round((currentCount / totalFields) * 100);
+
+            document.getElementById('hu-count').textContent = huCount;
+            document.getElementById('en-count').textContent = enCount;
+            document.getElementById('missing-count').textContent = missingCount;
+            document.getElementById('complete-percent').textContent = completePercent + '%';
+            document.getElementById('current-lang-display').textContent = currentLang.toUpperCase();
+            document.getElementById('current-lang-display2').textContent = currentLang.toUpperCase();
+        }
+
+        // Set clean state
+        function setClean() {
+            dirty = false;
+            updateUI();
+        }
+
+        // Switch language
+        function switchLanguage(lang) {
+            if (dirty && !confirm('Nem mentett módosítások vannak. Elmentsem most?')) {
+                return;
+            }
+            if (dirty) {
+                saveTranslations();
+                return; // Will be called again after save
+            }
+            
+            currentLang = lang;
+            
+            // Update button styles
+            if (lang === 'hu') {
+                btnHu.className = 'px-3 py-1 rounded text-sm font-medium bg-white text-gray-900 shadow-sm';
+                btnEn.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
+            } else {
+                btnEn.className = 'px-3 py-1 rounded text-sm font-medium bg-white text-gray-900 shadow-sm';
+                btnHu.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 hover:text-gray-900';
+            }
+            
+            renderFields();
+            updateStats();
+        }
+
+        // Event listeners
+        btnHu.addEventListener('click', () => switchLanguage('hu'));
+        btnEn.addEventListener('click', () => switchLanguage('en'));
+        btnSave.addEventListener('click', saveTranslations);
+
+        // Expose global functions
+        window.copyFromDefault = copyFromDefault;
+
+        // --- Iframe auto-resize: report height to parent ---
+        function postHeight() {
+            try {
+                const body = document.body;
+                const html = document.documentElement;
+                const height = Math.max(
+                    body.scrollHeight, body.offsetHeight,
+                    html.clientHeight, html.scrollHeight, html.offsetHeight
+                );
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'native-editor:height', height }, window.location.origin);
+                }
+            } catch (e) { /* noop */ }
+        }
+
+        const heightObserver = new ResizeObserver(() => postHeight());
+        heightObserver.observe(document.body);
+        window.addEventListener('load', postHeight);
+        window.addEventListener('resize', postHeight);
+
+        // Initial load
+        if (quizId) {
+            loadTranslations().then(() => setTimeout(postHeight, 0));
+        } else {
+            alert('Quiz ID not found');
+        }
+    </script>
+</body>
+</html>

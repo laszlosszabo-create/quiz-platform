@@ -55,7 +55,7 @@ Fejlessz egy **Next.js alapú, Supabase hátterű** quiz rendszert, amely:
 
 ### Theme Assets (Placeholder)
 - Logo: `/public/logo-placeholder.svg`
-- Hero: `/public/hero-placeholder.jpg`
+- Hero: `/public/hero-placeholder.svg`
 - Fallback: default theme színek ha asset hiányzik
 
 ## Modul 3 - Publikus Funnel Implementáció

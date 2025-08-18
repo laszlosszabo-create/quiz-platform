@@ -34,7 +34,124 @@
         </div>
 
         <!-- Translation Fields -->
-        <div class="space-y-4">
+        <div class="space-y-8">
+            <!-- Landing (LP) Section -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-xl font-semibold">Landing (LP)</h2>
+                    <span id="lp-missing" class="text-sm text-amber-700 bg-amber-100 px-2 py-1 rounded hidden">⚠️ Hiányzó kulcsok</span>
+                </div>
+                <div class="grid gap-4">
+                    <div>
+                        <label for="landing_hero_title" class="block text-sm font-medium text-gray-700 mb-2">Hero cím</label>
+                        <input id="landing_hero_title" name="landing_hero_title" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Hero cím..." />
+                    </div>
+                    <div>
+                        <label for="landing_hero_sub" class="block text-sm font-medium text-gray-700 mb-2">Hero alcím</label>
+                        <textarea id="landing_hero_sub" name="landing_hero_sub" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Hero alcím..."></textarea>
+                    </div>
+                    <div>
+                        <label for="hero_image_alt" class="block text-sm font-medium text-gray-700 mb-2">Hero kép alt szöveg</label>
+                        <input id="hero_image_alt" name="hero_image_alt" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Képleírás (alt) a hozzáférhetőséghez..." />
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="landing_badge_1" class="block text-sm font-medium text-gray-700 mb-2">Badge 1</label>
+                            <input id="landing_badge_1" name="landing_badge_1" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_badge_2" class="block text-sm font-medium text-gray-700 mb-2">Badge 2</label>
+                            <input id="landing_badge_2" name="landing_badge_2" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_badge_3" class="block text-sm font-medium text-gray-700 mb-2">Badge 3</label>
+                            <input id="landing_badge_3" name="landing_badge_3" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="landing_cta_primary" class="block text-sm font-medium text-gray-700 mb-2">CTA elsődleges</label>
+                            <input id="landing_cta_primary" name="landing_cta_primary" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_cta_secondary" class="block text-sm font-medium text-gray-700 mb-2">CTA másodlagos</label>
+                            <input id="landing_cta_secondary" name="landing_cta_secondary" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="landing_trust_item_1" class="block text-sm font-medium text-gray-700 mb-2">Trust elem 1</label>
+                            <input id="landing_trust_item_1" name="landing_trust_item_1" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_trust_item_2" class="block text-sm font-medium text-gray-700 mb-2">Trust elem 2</label>
+                            <input id="landing_trust_item_2" name="landing_trust_item_2" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_trust_item_3" class="block text-sm font-medium text-gray-700 mb-2">Trust elem 3</label>
+                            <input id="landing_trust_item_3" name="landing_trust_item_3" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="landing_how_1" class="block text-sm font-medium text-gray-700 mb-2">How #1</label>
+                            <input id="landing_how_1" name="landing_how_1" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_how_2" class="block text-sm font-medium text-gray-700 mb-2">How #2</label>
+                            <input id="landing_how_2" name="landing_how_2" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_how_3" class="block text-sm font-medium text-gray-700 mb-2">How #3</label>
+                            <input id="landing_how_3" name="landing_how_3" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="landing_testimonial_1_quote" class="block text-sm font-medium text-gray-700 mb-2">Testimonial 1 idézet</label>
+                            <input id="landing_testimonial_1_quote" name="landing_testimonial_1_quote" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <label for="landing_testimonial_1_author" class="block text-xs text-gray-500 mt-1">Szerző</label>
+                            <input id="landing_testimonial_1_author" name="landing_testimonial_1_author" type="text" class="w-full px-3 py-2 border border-gray-200 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_testimonial_2_quote" class="block text-sm font-medium text-gray-700 mb-2">Testimonial 2 idézet</label>
+                            <input id="landing_testimonial_2_quote" name="landing_testimonial_2_quote" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <label for="landing_testimonial_2_author" class="block text-xs text-gray-500 mt-1">Szerző</label>
+                            <input id="landing_testimonial_2_author" name="landing_testimonial_2_author" type="text" class="w-full px-3 py-2 border border-gray-200 rounded-md" />
+                        </div>
+                        <div>
+                            <label for="landing_testimonial_3_quote" class="block text-sm font-medium text-gray-700 mb-2">Testimonial 3 idézet</label>
+                            <input id="landing_testimonial_3_quote" name="landing_testimonial_3_quote" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <label for="landing_testimonial_3_author" class="block text-xs text-gray-500 mt-1">Szerző</label>
+                            <input id="landing_testimonial_3_author" name="landing_testimonial_3_author" type="text" class="w-full px-3 py-2 border border-gray-200 rounded-md" />
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="landing_faq_1_q" class="block text-sm font-medium text-gray-700 mb-2">FAQ 1 kérdés</label>
+                            <input id="landing_faq_1_q" name="landing_faq_1_q" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <label for="landing_faq_1_a" class="block text-xs text-gray-500 mt-1">Válasz</label>
+                            <textarea id="landing_faq_1_a" name="landing_faq_1_a" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                        </div>
+                        <div>
+                            <label for="landing_faq_2_q" class="block text-sm font-medium text-gray-700 mb-2">FAQ 2 kérdés</label>
+                            <input id="landing_faq_2_q" name="landing_faq_2_q" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <label for="landing_faq_2_a" class="block text-xs text-gray-500 mt-1">Válasz</label>
+                            <textarea id="landing_faq_2_a" name="landing_faq_2_a" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                        </div>
+                        <div>
+                            <label for="landing_faq_3_q" class="block text-sm font-medium text-gray-700 mb-2">FAQ 3 kérdés</label>
+                            <input id="landing_faq_3_q" name="landing_faq_3_q" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <label for="landing_faq_3_a" class="block text-xs text-gray-500 mt-1">Válasz</label>
+                            <textarea id="landing_faq_3_a" name="landing_faq_3_a" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="landing_disclaimer" class="block text-sm font-medium text-gray-700 mb-2">Jogi nyilatkozat</label>
+                        <textarea id="landing_disclaimer" name="landing_disclaimer" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                    </div>
+                </div>
+            </div>
             <div>
                 <label for="landing_headline" class="block text-sm font-medium text-gray-700 mb-2">
                     Landing Page Headline
@@ -104,7 +221,74 @@
         let currentLang = 'hu';
         let dirty = false;
         let changed = new Set();
-        const fieldKeys = ['landing_headline', 'cta_text', 'meta_title', 'meta_description'];
+                const fieldKeys = [
+                    // Legacy/basic fields
+                    'landing_headline', 'landing_sub', 'cta_text', 'landing_cta_text', 'meta_title', 'meta_description',
+                    
+                    // Hero szekció
+                    'landing_hero_title', 'landing_hero_sub', 'landing_hero_note',
+                    'landing_badge_1', 'landing_badge_2', 'landing_badge_3',
+                    'landing_time_estimate', 'landing_question_count',
+                    
+                    // CTA gombok
+                    'landing_cta_primary', 'landing_cta_secondary', 'landing_cta_mid', 
+                    'landing_cta_urgency', 'landing_final_cta_button',
+                    
+                    // Statisztikák
+                    'landing_stats_title', 'landing_stats_desc',
+                    'landing_stat_1_number', 'landing_stat_1_label', 'landing_stat_2_number', 'landing_stat_2_label',
+                    'landing_stat_3_number', 'landing_stat_3_label', 'landing_stat_4_number', 'landing_stat_4_label',
+                    
+                    // Trust/Előnyök
+                    'landing_trust_section_title', 'landing_trust_section_desc',
+                    'landing_trust_item_1_title', 'landing_trust_item_1_desc',
+                    'landing_trust_item_2_title', 'landing_trust_item_2_desc',
+                    'landing_trust_item_3_title', 'landing_trust_item_3_desc',
+                    
+                    // Hogyan működik
+                    'landing_how_section_title', 'landing_how_section_desc',
+                    'landing_how_1_title', 'landing_how_1_desc',
+                    'landing_how_2_title', 'landing_how_2_desc',
+                    'landing_how_3_title', 'landing_how_3_desc',
+                    
+                    // Mire számíthatsz
+                    'landing_expect_title', 'landing_expect_desc',
+                    'landing_expect_1_title', 'landing_expect_1_desc',
+                    'landing_expect_2_title', 'landing_expect_2_desc',
+                    'landing_expect_3_title', 'landing_expect_3_desc',
+                    'landing_expect_4_title', 'landing_expect_4_desc',
+                    
+                    // Urgencia
+                    'landing_urgency_title', 'landing_urgency_desc',
+                    'landing_urgency_point_1', 'landing_urgency_point_2', 'landing_urgency_point_3',
+                    
+                    // Garanciák
+                    'landing_guarantee_title',
+                    'landing_guarantee_1', 'landing_guarantee_2', 'landing_guarantee_3', 'landing_guarantee_4',
+                    
+                    // Ajánlások
+                    'landing_testimonial_1_quote', 'landing_testimonial_1_author',
+                    'landing_testimonial_2_quote', 'landing_testimonial_2_author',
+                    'landing_testimonial_3_quote', 'landing_testimonial_3_author',
+                    
+                    // GYIK
+                    'landing_faq_section_title',
+                    'landing_faq_1_q', 'landing_faq_1_a', 'landing_faq_2_q', 'landing_faq_2_a',
+                    'landing_faq_3_q', 'landing_faq_3_a', 'landing_faq_4_q', 'landing_faq_4_a',
+                    'landing_faq_5_q', 'landing_faq_5_a', 'landing_faq_6_q', 'landing_faq_6_a',
+                    
+                    // Adatvédelem
+                    'landing_privacy_title', 'landing_privacy_desc',
+                    'landing_privacy_point_1', 'landing_privacy_point_2', 'landing_privacy_point_3', 'landing_privacy_point_4',
+                    
+                    // Orvosi disclaimer
+                    'landing_medical_title',
+                    'landing_medical_point_1', 'landing_medical_point_2', 'landing_medical_point_3', 'landing_medical_point_4',
+                    'landing_disclaimer',
+                    
+                    // Utolsó CTA
+                    'landing_final_cta_title', 'landing_final_cta_desc'
+                ];
 
         // Elements
         const btnHu = document.getElementById('btn-hu');
@@ -124,11 +308,14 @@
                 const data = await response.json();
                 const translations = data.translations || {};
                 
+                let missingCount = 0;
                 fieldKeys.forEach(key => {
                     const field = document.getElementById(key);
                     const langTranslations = translations[currentLang] || {};
                     field.value = langTranslations[key] || '';
+                    if (!langTranslations[key]) missingCount++;
                 });
+                document.getElementById('lp-missing').classList.toggle('hidden', missingCount === 0);
                 
                 setClean();
             } catch (error) {
@@ -227,8 +414,29 @@
             field.addEventListener('input', () => onFieldChange(key));
         });
 
+        // --- Iframe auto-resize: report height to parent ---
+        function postHeight() {
+            try {
+                const body = document.body
+                const html = document.documentElement
+                const height = Math.max(
+                    body.scrollHeight, body.offsetHeight,
+                    html.clientHeight, html.scrollHeight, html.offsetHeight
+                )
+                // Same-origin parent expected in Admin, safe to post
+                window.parent?.postMessage({ type: 'native-editor:height', height }, window.location.origin)
+            } catch (e) {
+                // noop
+            }
+        }
+
+        const heightObserver = new ResizeObserver(() => postHeight())
+        heightObserver.observe(document.body)
+        window.addEventListener('load', postHeight)
+        window.addEventListener('resize', postHeight)
+
         // Initial load
-        loadTranslations();
+        loadTranslations().then(() => setTimeout(postHeight, 0))
     </script>
 </body>
 </html>

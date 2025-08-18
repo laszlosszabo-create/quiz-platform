@@ -44,46 +44,159 @@
         let dirty = false;
         let translations = { hu: {}, en: {} };
         
-        // All translation fields matching TranslationEditor component
+        // Teljes fordítási mezőlista (Landing LP + legacy + egyéb)
         const translationFields = [
-            // Landing Page
-            { key: 'landing_headline', label: 'Landing headline', category: 'Landing Page' },
-            { key: 'landing_sub', label: 'Landing alcím', category: 'Landing Page' },
+            // Hero szekció
+            { key: 'landing_hero_title', label: 'Hero: Főcím', category: 'Hero szekció', multiline: true },
+            { key: 'landing_hero_sub', label: 'Hero: Alcím', category: 'Hero szekció', multiline: true },
+            { key: 'landing_hero_note', label: 'Hero: Apró szöveg CTA alatt', category: 'Hero szekció' },
+            { key: 'landing_badge_1', label: 'Hero: Badge 1', category: 'Hero szekció' },
+            { key: 'landing_badge_2', label: 'Hero: Badge 2', category: 'Hero szekció' },
+            { key: 'landing_badge_3', label: 'Hero: Badge 3', category: 'Hero szekció' },
+            { key: 'landing_time_estimate', label: 'Hero: Becsült idő', category: 'Hero szekció' },
+            { key: 'landing_question_count', label: 'Hero: Kérdések száma', category: 'Hero szekció' },
+            
+            // CTA gombok
+            { key: 'landing_cta_primary', label: 'CTA: Főgomb szövege', category: 'CTA gombok' },
+            { key: 'landing_cta_secondary', label: 'CTA: Mellékgomb szövege', category: 'CTA gombok' },
+            { key: 'landing_cta_mid', label: 'CTA: Középső gomb', category: 'CTA gombok' },
+            { key: 'landing_cta_urgency', label: 'CTA: Urgencia szekció gomb', category: 'CTA gombok' },
+            { key: 'landing_final_cta_button', label: 'CTA: Utolsó gomb', category: 'CTA gombok' },
+
+            // Statisztikák szekció
+            { key: 'landing_stats_title', label: 'Statisztikák: Szekció cím', category: 'Statisztikák' },
+            { key: 'landing_stats_desc', label: 'Statisztikák: Szekció leírás', category: 'Statisztikák' },
+            { key: 'landing_stat_1_number', label: 'Statisztikák: 1. szám', category: 'Statisztikák' },
+            { key: 'landing_stat_1_label', label: 'Statisztikák: 1. címke', category: 'Statisztikák' },
+            { key: 'landing_stat_2_number', label: 'Statisztikák: 2. szám', category: 'Statisztikák' },
+            { key: 'landing_stat_2_label', label: 'Statisztikák: 2. címke', category: 'Statisztikák' },
+            { key: 'landing_stat_3_number', label: 'Statisztikák: 3. szám', category: 'Statisztikák' },
+            { key: 'landing_stat_3_label', label: 'Statisztikák: 3. címke', category: 'Statisztikák' },
+            { key: 'landing_stat_4_number', label: 'Statisztikák: 4. szám', category: 'Statisztikák' },
+            { key: 'landing_stat_4_label', label: 'Statisztikák: 4. címke', category: 'Statisztikák' },
+
+            // Trust/Előnyök szekció
+            { key: 'landing_trust_section_title', label: 'Trust: Szekció cím', category: 'Trust/Előnyök' },
+            { key: 'landing_trust_section_desc', label: 'Trust: Szekció leírás', category: 'Trust/Előnyök', multiline: true },
+            { key: 'landing_trust_item_1_title', label: 'Trust: 1. előny címe', category: 'Trust/Előnyök' },
+            { key: 'landing_trust_item_1_desc', label: 'Trust: 1. előny leírása', category: 'Trust/Előnyök', multiline: true },
+            { key: 'landing_trust_item_2_title', label: 'Trust: 2. előny címe', category: 'Trust/Előnyök' },
+            { key: 'landing_trust_item_2_desc', label: 'Trust: 2. előny leírása', category: 'Trust/Előnyök', multiline: true },
+            { key: 'landing_trust_item_3_title', label: 'Trust: 3. előny címe', category: 'Trust/Előnyök' },
+            { key: 'landing_trust_item_3_desc', label: 'Trust: 3. előny leírása', category: 'Trust/Előnyök', multiline: true },
+
+            // Hogyan működik szekció
+            { key: 'landing_how_section_title', label: 'Hogyan: Szekció cím', category: 'Hogyan működik' },
+            { key: 'landing_how_section_desc', label: 'Hogyan: Szekció leírás', category: 'Hogyan működik', multiline: true },
+            { key: 'landing_how_1_title', label: 'Hogyan: 1. lépés cím', category: 'Hogyan működik' },
+            { key: 'landing_how_1_desc', label: 'Hogyan: 1. lépés leírás', category: 'Hogyan működik', multiline: true },
+            { key: 'landing_how_2_title', label: 'Hogyan: 2. lépés cím', category: 'Hogyan működik' },
+            { key: 'landing_how_2_desc', label: 'Hogyan: 2. lépés leírás', category: 'Hogyan működik', multiline: true },
+            { key: 'landing_how_3_title', label: 'Hogyan: 3. lépés cím', category: 'Hogyan működik' },
+            { key: 'landing_how_3_desc', label: 'Hogyan: 3. lépés leírás', category: 'Hogyan működik', multiline: true },
+
+            // Mire számíthatsz szekció  
+            { key: 'landing_expect_title', label: 'Elvárások: Szekció cím', category: 'Mire számíthatsz' },
+            { key: 'landing_expect_desc', label: 'Elvárások: Szekció leírás', category: 'Mire számíthatsz', multiline: true },
+            { key: 'landing_expect_1_title', label: 'Elvárások: 1. elem cím', category: 'Mire számíthatsz' },
+            { key: 'landing_expect_1_desc', label: 'Elvárások: 1. elem leírás', category: 'Mire számíthatsz', multiline: true },
+            { key: 'landing_expect_2_title', label: 'Elvárások: 2. elem cím', category: 'Mire számíthatsz' },
+            { key: 'landing_expect_2_desc', label: 'Elvárások: 2. elem leírás', category: 'Mire számíthatsz', multiline: true },
+            { key: 'landing_expect_3_title', label: 'Elvárások: 3. elem cím', category: 'Mire számíthatsz' },
+            { key: 'landing_expect_3_desc', label: 'Elvárások: 3. elem leírás', category: 'Mire számíthatsz', multiline: true },
+            { key: 'landing_expect_4_title', label: 'Elvárások: 4. elem cím', category: 'Mire számíthatsz' },
+            { key: 'landing_expect_4_desc', label: 'Elvárások: 4. elem leírás', category: 'Mire számíthatsz', multiline: true },
+
+            // Urgencia szekció
+            { key: 'landing_urgency_title', label: 'Urgencia: Szekció cím', category: 'Urgencia' },
+            { key: 'landing_urgency_desc', label: 'Urgencia: Szekció leírás', category: 'Urgencia', multiline: true },
+            { key: 'landing_urgency_point_1', label: 'Urgencia: 1. pont', category: 'Urgencia', multiline: true },
+            { key: 'landing_urgency_point_2', label: 'Urgencia: 2. pont', category: 'Urgencia', multiline: true },
+            { key: 'landing_urgency_point_3', label: 'Urgencia: 3. pont', category: 'Urgencia', multiline: true },
+
+            // Garanciák szekció
+            { key: 'landing_guarantee_title', label: 'Garanciák: Szekció cím', category: 'Garanciák' },
+            { key: 'landing_guarantee_1', label: 'Garanciák: 1. garancia', category: 'Garanciák' },
+            { key: 'landing_guarantee_2', label: 'Garanciák: 2. garancia', category: 'Garanciák' },
+            { key: 'landing_guarantee_3', label: 'Garanciák: 3. garancia', category: 'Garanciák' },
+            { key: 'landing_guarantee_4', label: 'Garanciák: 4. garancia', category: 'Garanciák' },
+
+            // Ajánlások/Testimonials (opcionális)
+            { key: 'landing_testimonial_1_quote', label: 'Ajánlás: 1. idézet', category: 'Ajánlások', multiline: true },
+            { key: 'landing_testimonial_1_author', label: 'Ajánlás: 1. szerző', category: 'Ajánlások' },
+            { key: 'landing_testimonial_2_quote', label: 'Ajánlás: 2. idézet', category: 'Ajánlások', multiline: true },
+            { key: 'landing_testimonial_2_author', label: 'Ajánlás: 2. szerző', category: 'Ajánlások' },
+            { key: 'landing_testimonial_3_quote', label: 'Ajánlás: 3. idézet', category: 'Ajánlások', multiline: true },
+            { key: 'landing_testimonial_3_author', label: 'Ajánlás: 3. szerző', category: 'Ajánlások' },
+
+            // GYIK (opcionális)
+            { key: 'landing_faq_section_title', label: 'GYIK: Szekció cím', category: 'GYIK' },
+            { key: 'landing_faq_1_q', label: 'GYIK: 1. kérdés', category: 'GYIK' },
+            { key: 'landing_faq_1_a', label: 'GYIK: 1. válasz', category: 'GYIK', multiline: true },
+            { key: 'landing_faq_2_q', label: 'GYIK: 2. kérdés', category: 'GYIK' },
+            { key: 'landing_faq_2_a', label: 'GYIK: 2. válasz', category: 'GYIK', multiline: true },
+            { key: 'landing_faq_3_q', label: 'GYIK: 3. kérdés', category: 'GYIK' },
+            { key: 'landing_faq_3_a', label: 'GYIK: 3. válasz', category: 'GYIK', multiline: true },
+            { key: 'landing_faq_4_q', label: 'GYIK: 4. kérdés', category: 'GYIK' },
+            { key: 'landing_faq_4_a', label: 'GYIK: 4. válasz', category: 'GYIK', multiline: true },
+            { key: 'landing_faq_5_q', label: 'GYIK: 5. kérdés', category: 'GYIK' },
+            { key: 'landing_faq_5_a', label: 'GYIK: 5. válasz', category: 'GYIK', multiline: true },
+            { key: 'landing_faq_6_q', label: 'GYIK: 6. kérdés', category: 'GYIK' },
+            { key: 'landing_faq_6_a', label: 'GYIK: 6. válasz', category: 'GYIK', multiline: true },
+
+            // Adatvédelem szekció
+            { key: 'landing_privacy_title', label: 'Adatvédelem: Szekció cím', category: 'Adatvédelem' },
+            { key: 'landing_privacy_desc', label: 'Adatvédelem: Szekció leírás', category: 'Adatvédelem', multiline: true },
+            { key: 'landing_privacy_point_1', label: 'Adatvédelem: 1. pont', category: 'Adatvédelem', multiline: true },
+            { key: 'landing_privacy_point_2', label: 'Adatvédelem: 2. pont', category: 'Adatvédelem', multiline: true },
+            { key: 'landing_privacy_point_3', label: 'Adatvédelem: 3. pont', category: 'Adatvédelem', multiline: true },
+            { key: 'landing_privacy_point_4', label: 'Adatvédelem: 4. pont', category: 'Adatvédelem', multiline: true },
+
+            // Orvosi disclaimer
+            { key: 'landing_medical_title', label: 'Orvosi: Szekció cím', category: 'Orvosi disclaimer' },
+            { key: 'landing_medical_point_1', label: 'Orvosi: 1. pont', category: 'Orvosi disclaimer', multiline: true },
+            { key: 'landing_medical_point_2', label: 'Orvosi: 2. pont', category: 'Orvosi disclaimer', multiline: true },
+            { key: 'landing_medical_point_3', label: 'Orvosi: 3. pont', category: 'Orvosi disclaimer', multiline: true },
+            { key: 'landing_medical_point_4', label: 'Orvosi: 4. pont', category: 'Orvosi disclaimer', multiline: true },
+            { key: 'landing_disclaimer', label: 'Orvosi: Főszöveg', category: 'Orvosi disclaimer', multiline: true },
+
+            // Utolsó CTA szekció
+            { key: 'landing_final_cta_title', label: 'Utolsó CTA: Cím', category: 'Utolsó CTA' },
+            { key: 'landing_final_cta_desc', label: 'Utolsó CTA: Leírás', category: 'Utolsó CTA', multiline: true },
+
+            // SEO Metadata
+            { key: 'meta_title', label: 'SEO: Oldal címe', category: 'SEO' },
+            { key: 'meta_description', label: 'SEO: Oldal leírása', category: 'SEO', multiline: true },
+
+            // Legacy/általános Landing Page mezők (kompatibilitás)
+            { key: 'landing_headline', label: 'Legacy: Landing headline', category: 'Legacy' },
+            { key: 'landing_sub', label: 'Legacy: Landing alcím', category: 'Legacy' },
             { key: 'landing_description', label: 'Landing leírás', category: 'Landing Page', multiline: true },
+            { key: 'landing_cta_text', label: 'Landing CTA szöveg', category: 'Landing Page' },
             { key: 'meta_title', label: 'Meta title (SEO)', category: 'Landing Page' },
             { key: 'meta_description', label: 'Meta description (SEO)', category: 'Landing Page', multiline: true },
-            
-            // Social Proof
-            { key: 'social_proof_title', label: 'Social proof cím', category: 'Social Proof' },
-            { key: 'social_proof_subtitle', label: 'Social proof alcím', category: 'Social Proof' },
-            
-            // Email Gate
-            { key: 'email_gate_title', label: 'Email gate cím', category: 'Email Gate' },
-            { key: 'email_gate_subtitle', label: 'Email gate alcím', category: 'Email Gate' },
-            { key: 'email_gate_button', label: 'Email gate gomb', category: 'Email Gate' },
-            { key: 'email_gate_disclaimer', label: 'Email gate figyelmeztetés', category: 'Email Gate', multiline: true },
-            
-            // Quiz
-            { key: 'quiz_start_button', label: 'Kvíz start gomb', category: 'Quiz' },
-            { key: 'quiz_next_button', label: 'Kvíz tovább gomb', category: 'Quiz' },
-            { key: 'quiz_previous_button', label: 'Kvíz vissza gomb', category: 'Quiz' },
-            { key: 'quiz_submit_button', label: 'Kvíz beküldés gomb', category: 'Quiz' },
-            
-            // Result Page
-            { key: 'result_title', label: 'Eredmény cím', category: 'Result Page' },
-            { key: 'result_subtitle', label: 'Eredmény alcím', category: 'Result Page' },
-            { key: 'result_description', label: 'Eredmény leírás', category: 'Result Page', multiline: true },
-            { key: 'result_cta_button', label: 'Eredmény CTA gomb', category: 'Result Page' },
-            { key: 'result_share_title', label: 'Megosztás cím', category: 'Result Page' },
-            
-            // Email Templates
-            { key: 'email_subject', label: 'Email tárgy', category: 'Email Templates' },
-            { key: 'email_greeting', label: 'Email üdvözlés', category: 'Email Templates' },
-            { key: 'email_intro', label: 'Email bevezető', category: 'Email Templates', multiline: true },
-            { key: 'email_result_intro', label: 'Email eredmény bevezető', category: 'Email Templates' },
-            { key: 'email_cta_text', label: 'Email CTA szöveg', category: 'Email Templates' },
-            { key: 'email_cta_button', label: 'Email CTA gomb', category: 'Email Templates' },
-            { key: 'email_footer', label: 'Email lábléc', category: 'Email Templates', multiline: true }
+
+            // Email Gate (aktuális kulcsok)
+            { key: 'email_gate_headline', label: 'Email gate headline', category: 'Email Gate' },
+            { key: 'email_gate_description', label: 'Email gate leírás', category: 'Email Gate', multiline: true },
+            { key: 'email_field_placeholder', label: 'Email mező placeholder', category: 'Email Gate' },
+            { key: 'name_field_placeholder', label: 'Név mező placeholder', category: 'Email Gate' },
+            { key: 'email_gate_submit_button', label: 'Submit gomb szöveg', category: 'Email Gate' },
+            { key: 'email_gate_privacy_text', label: 'Adatvédelmi szöveg', category: 'Email Gate', multiline: true },
+
+            // Social Proof (egyszerű)
+            { key: 'social_proof_1', label: 'Social proof 1', category: 'Social Proof' },
+            { key: 'social_proof_2', label: 'Social proof 2', category: 'Social Proof' },
+            { key: 'social_proof_3', label: 'Social proof 3', category: 'Social Proof' },
+
+            // Result Page (minták)
+            { key: 'result_headline', label: 'Eredmény headline', category: 'Result Page' },
+            { key: 'result_sub', label: 'Eredmény alcím', category: 'Result Page' },
+            { key: 'result_ai_loading', label: 'AI loading szöveg', category: 'Result Page' },
+            { key: 'result_booking_headline', label: 'Foglalás headline', category: 'Result Page' },
+            { key: 'result_booking_cta', label: 'Foglalás gomb', category: 'Result Page' },
+            { key: 'result_product_headline', label: 'Termék headline', category: 'Result Page' },
+            { key: 'result_product_cta', label: 'Termék gomb', category: 'Result Page' },
         ];
 
         // Group fields by category
@@ -266,9 +379,29 @@
         btnEn.addEventListener('click', () => switchLanguage('en'));
         btnSave.addEventListener('click', saveTranslations);
 
+        // --- Iframe auto-resize: report height to parent ---
+        function postHeight() {
+            try {
+                const body = document.body;
+                const html = document.documentElement;
+                const height = Math.max(
+                    body.scrollHeight, body.offsetHeight,
+                    html.clientHeight, html.scrollHeight, html.offsetHeight
+                );
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'native-editor:height', height }, window.location.origin);
+                }
+            } catch (e) { /* noop */ }
+        }
+
+        const heightObserver = new ResizeObserver(() => postHeight());
+        heightObserver.observe(document.body);
+        window.addEventListener('load', postHeight);
+        window.addEventListener('resize', postHeight);
+
         // Initial load
         if (quizId) {
-            loadTranslations();
+            loadTranslations().then(() => setTimeout(postHeight, 0));
         } else {
             alert('Quiz ID not found in URL parameters');
         }

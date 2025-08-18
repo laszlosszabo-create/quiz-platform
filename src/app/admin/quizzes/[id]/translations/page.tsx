@@ -13,6 +13,24 @@ export default function TranslationPage({ params }: TranslationPageProps) {
   const [quizId, setQuizId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const [iframeHeight, setIframeHeight] = useState<number>(900)
+
+  // Listen for height messages from the native editor to auto-resize the iframe
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      // Same-origin only and expected message shape
+      if (typeof window === 'undefined') return
+      if (event.origin !== window.location.origin) return
+      const data = event.data as any
+      if (data && data.type === 'native-editor:height' && typeof data.height === 'number') {
+        // Clamp height to sensible bounds
+        const clamped = Math.max(600, Math.min(3000, Math.round(data.height)))
+        setIframeHeight(clamped)
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
 
   useEffect(() => {
     const getParams = async () => {
@@ -59,7 +77,7 @@ export default function TranslationPage({ params }: TranslationPageProps) {
         <iframe
           src={`/admin/quizzes/${quizId}/translations/native`}
           className="w-full border-0"
-          style={{ height: '800px', minHeight: '600px' }}
+          style={{ height: `${iframeHeight}px`, minHeight: '600px' }}
           title="Translation Editor"
         />
       </div>

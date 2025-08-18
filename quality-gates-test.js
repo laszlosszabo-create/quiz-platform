@@ -3,10 +3,39 @@
 
 const http = require('http');
 const { URL } = require('url');
+const { createClient } = require('@supabase/supabase-js');
 
-const TEST_QUIZ_ID = '474c52bb-c907-40c4-8cb1-993cfcdf2f38';
+require('dotenv').config({ path: '.env.local' });
+let TEST_QUIZ_ID = process.env.TEST_QUIZ_ID || null;
 const BASE_URL = 'http://localhost:3000/api/admin/products';
 let createdProductId = null;
+
+// Supabase client for resolving quiz id dynamically
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+async function resolveQuizIdBySlug(slug = 'adhd-quick-check') {
+  if (TEST_QUIZ_ID) return TEST_QUIZ_ID;
+  try {
+    const { data, error } = await supabase
+      .from('quizzes')
+      .select('id')
+      .eq('slug', slug)
+      .eq('status', 'active')
+      .single();
+    if (error) {
+      console.error('Failed to resolve quiz id by slug:', error.message);
+      return null;
+    }
+    TEST_QUIZ_ID = data?.id || null;
+    return TEST_QUIZ_ID;
+  } catch (e) {
+    console.error('Error resolving quiz id:', e.message);
+    return null;
+  }
+}
 
 // Helper function to make HTTP requests
 function makeRequest(method, urlString, data = null) {
@@ -56,6 +85,10 @@ async function runQualityGates() {
   const results = [];
 
   try {
+  // Resolve quiz id dynamically to avoid stale cache after reseed
+  TEST_QUIZ_ID = await resolveQuizIdBySlug('adhd-quick-check');
+  if (!TEST_QUIZ_ID) throw new Error('Could not resolve TEST_QUIZ_ID by slug');
+
     // Test 1: POST - Create Product
     console.log('📝 Test 1: POST - Create Product');
     const createData = {

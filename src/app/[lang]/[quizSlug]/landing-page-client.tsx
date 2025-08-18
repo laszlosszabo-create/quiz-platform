@@ -33,7 +33,7 @@ export function LandingPageClient({
 
   // Get theme values with fallbacks
   const logoUrl = theme.logo_url || '/logo-placeholder.svg'
-  const heroImageUrl = theme.hero_image_url || '/hero-placeholder.jpg'
+  const heroImageUrl = theme.hero_image_url || '/hero-placeholder.svg'
   const primaryColor = theme.primary_color || '#3B82F6'
   const secondaryColor = theme.secondary_color || '#10B981'
 

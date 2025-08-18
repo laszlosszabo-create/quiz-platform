@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase-admin'
+import { getSupabaseAdmin } from './supabase-config'
 
 export interface AuditLogEntry {
   id?: string
@@ -12,7 +12,7 @@ export interface AuditLogEntry {
 }
 
 export async function createAuditLog(entry: Omit<AuditLogEntry, 'id' | 'created_at'>) {
-  const supabase = supabaseAdmin
+  const supabase = getSupabaseAdmin()
 
   try {
     const { data, error } = await supabase
@@ -74,7 +74,7 @@ export async function getAuditLogs(
   resourceId?: string,
   limit: number = 50
 ) {
-  const supabase = supabaseAdmin
+  const supabase = getSupabaseAdmin()
 
   try {
     let query = supabase

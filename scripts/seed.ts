@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+import dotenv from 'dotenv'
+// Load local envs for CLI usage
+dotenv.config({ path: '.env.local' })
+dotenv.config({ path: '.env.local.remote' })
 import { Database } from '../src/types/database'
 
 // Environment check
@@ -132,7 +136,7 @@ async function createQuiz() {
         primary_color: '#3B82F6',
         secondary_color: '#10B981',
         logo_url: '/logo-placeholder.svg',
-        hero_image_url: '/hero-placeholder.jpg',
+  hero_image_url: '/hero-placeholder.svg',
         calendly_url: 'https://calendly.com/demo-account'
       }
     })
@@ -145,8 +149,8 @@ async function createQuiz() {
 
 async function createTranslations(quizId: string) {
   const translations = [
-    // Landing Page - HU
-    { quiz_id: quizId, lang: 'hu', field_key: 'landing_headline', value: 'ADHD Gyorsteszt - Ismerd meg magad!' },
+  // Landing Page - HU (legacy generic)
+  { quiz_id: quizId, lang: 'hu', field_key: 'landing_headline', value: 'ADHD Gyorsteszt - Ismerd meg magad!' },
     { quiz_id: quizId, lang: 'hu', field_key: 'landing_sub', value: 'Egy 5 perces teszt, amely segít feltérképezni az ADHD tüneteit. Tudományosan megalapozott kérdések, személyre szabott eredmény.' },
     { quiz_id: quizId, lang: 'hu', field_key: 'landing_description', value: 'Tudományosan megalapozott ADHD teszt 5 perc alatt. Ismerd meg jobban magad és kapj személyre szabott visszajelzést a tüneteidről.' },
     { quiz_id: quizId, lang: 'hu', field_key: 'landing_cta_text', value: 'Teszt indítása' },
@@ -165,7 +169,7 @@ async function createTranslations(quizId: string) {
     { quiz_id: quizId, lang: 'hu', field_key: 'email_gate_submit_button', value: 'Eredmény megjelenítése' },
     { quiz_id: quizId, lang: 'hu', field_key: 'email_gate_privacy_text', value: 'Adataidat biztonságban tartjuk és nem adjuk át harmadik félnek.' },
     
-    // Landing Page - EN
+  // Landing Page - EN (legacy generic)
     { quiz_id: quizId, lang: 'en', field_key: 'landing_headline', value: 'ADHD Quick Assessment - Know Yourself Better!' },
     { quiz_id: quizId, lang: 'en', field_key: 'landing_sub', value: 'A 5-minute test that helps map ADHD symptoms. Scientifically based questions with personalized results.' },
     { quiz_id: quizId, lang: 'en', field_key: 'landing_description', value: 'Scientifically based ADHD test in 5 minutes. Get to know yourself better and receive personalized feedback about your symptoms.' },
@@ -318,6 +322,81 @@ async function createTranslations(quizId: string) {
       .from('quiz_translations')
       .insert(batch)
     
+    if (error) throw error
+  }
+
+  // New Landing (LP) flat keys for ADHD landing
+  const landingHu: Array<{ quiz_id: string; lang: 'hu'; field_key: string; value: string }> = [
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_hero_title', value: 'ADHD Gyorsteszt – 5 perc, valós visszajelzés' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_hero_sub', value: 'Ismerd meg a figyelem, impulzivitás és szervezettség mintázatait. Tudományos szemlélet, érthető összefoglaló.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_badge_1', value: '5,000+ kitöltés' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_badge_2', value: '98% elégedettség' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_badge_3', value: 'Személyre szabott áttekintés' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_cta_primary', value: 'Kezdjük a tesztet' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_cta_secondary', value: 'További információ' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_trust_item_1', value: 'Gyors és ingyenes' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_trust_item_2', value: 'Szakmai alapok' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_trust_item_3', value: 'Anonim kitöltés' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_how_1', value: 'Válaszolj 8 egyszerű kérdésre' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_how_2', value: 'Kapsz egy azonnali, közérthető összegzést' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_how_3', value: 'Ha szeretnéd, e-mailben is elküldjük' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_testimonial_1_quote', value: 'Végre értem, miért nehéz bizonyos helyzetekben.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_testimonial_1_author', value: 'Eszter, 29' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_testimonial_2_quote', value: 'Rövid volt, mégis sokat adott.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_testimonial_2_author', value: 'Ádám, 34' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_testimonial_3_quote', value: 'Hasznos kiindulópont a következő lépésekhez.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_testimonial_3_author', value: 'Dóri, 25' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_faq_1_q', value: 'Ez orvosi diagnózis helyettesítésére szolgál?' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_faq_1_a', value: 'Nem. A teszt tájékoztató jellegű, nem helyettesít szakorvosi vizsgálatot.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_faq_2_q', value: 'Mennyi időt vesz igénybe?' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_faq_2_a', value: 'Kb. 5 perc.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_faq_3_q', value: 'Kell e-mailt adnom?' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_faq_3_a', value: 'Nem kötelező. Az eredményed e-mail nélkül is megtekintheted.' },
+    { quiz_id: quizId, lang: 'hu', field_key: 'landing_disclaimer', value: 'A teszt nem helyettesíti a szakmai diagnózist. Kérdés esetén fordulj szakemberhez.' },
+  ]
+
+  // Upsert HU landing keys to avoid duplicate insert errors when re-seeding
+  if (landingHu.length > 0) {
+    const { error } = await supabase
+      .from('quiz_translations')
+      .upsert(landingHu, { onConflict: 'quiz_id,lang,field_key' })
+    if (error) throw error
+  }
+
+  // EN Landing keys
+  const landingEn: Array<{ quiz_id: string; lang: 'en'; field_key: string; value: string }> = [
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_hero_title', value: 'ADHD Quick Test – 5 minutes, real insight' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_hero_sub', value: 'Understand your attention, impulsivity and organization patterns. Science-informed, plain-language summary.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_badge_1', value: '5,000+ completions' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_badge_2', value: '98% satisfaction' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_badge_3', value: 'Personalized overview' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_cta_primary', value: 'Start the test' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_cta_secondary', value: 'Learn more' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_trust_item_1', value: 'Fast and free' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_trust_item_2', value: 'Science-based' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_trust_item_3', value: 'Anonymous' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_how_1', value: 'Answer 8 simple questions' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_how_2', value: 'Get an instant, easy-to-read summary' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_how_3', value: 'Optionally receive it via email' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_testimonial_1_quote', value: 'I finally understand why some situations are hard.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_testimonial_1_author', value: 'Esther, 29' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_testimonial_2_quote', value: 'Short yet surprisingly helpful.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_testimonial_2_author', value: 'Adam, 34' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_testimonial_3_quote', value: 'Great starting point for next steps.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_testimonial_3_author', value: 'Dora, 25' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_faq_1_q', value: 'Is this a medical diagnosis?' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_faq_1_a', value: 'No. The test is informative and does not replace professional evaluation.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_faq_2_q', value: 'How long does it take?' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_faq_2_a', value: 'About 5 minutes.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_faq_3_q', value: 'Do I have to provide an email?' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_faq_3_a', value: 'No. You can view your result without email.' },
+    { quiz_id: quizId, lang: 'en', field_key: 'landing_disclaimer', value: 'This test does not replace professional diagnosis. Consult a specialist if in doubt.' },
+  ]
+
+  if (landingEn.length > 0) {
+    const { error } = await supabase
+      .from('quiz_translations')
+      .upsert(landingEn, { onConflict: 'quiz_id,lang,field_key' })
     if (error) throw error
   }
 }

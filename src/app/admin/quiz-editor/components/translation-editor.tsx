@@ -67,8 +67,10 @@ const TranslationEditor = forwardRef<TranslationEditorHandle, TranslationEditorP
 
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <iframe
+            id="translation-iframe"
             src={`/admin/translations-native.html?id=${quizData.id}`}
-            className="w-full h-[800px] border-0"
+            className="w-full border-0"
+            style={{ height: '800px', minHeight: '600px' }}
             title="Translation Editor"
           />
         </div>
@@ -80,3 +82,18 @@ const TranslationEditor = forwardRef<TranslationEditorHandle, TranslationEditorP
 TranslationEditor.displayName = 'TranslationEditor'
 
 export default TranslationEditor
+
+// Auto-resize iframe based on native page height messages
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.origin !== window.location.origin) return
+    const data = event.data as any
+    if (data && data.type === 'native-editor:height') {
+      const iframe = document.getElementById('translation-iframe') as HTMLIFrameElement | null
+      if (iframe && typeof data.height === 'number') {
+        const clamped = Math.max(600, Math.min(3000, data.height + 40))
+        iframe.style.height = `${clamped}px`
+      }
+    }
+  })
+}

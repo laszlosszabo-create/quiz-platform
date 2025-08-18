@@ -1317,7 +1317,7 @@ Ha szeretnéd, folytathatjuk a másik kérdés feldolgozását vagy konkrét pé
 --
 
 INSERT INTO "public"."quizzes" ("id", "slug", "status", "default_lang", "feature_flags", "theme", "created_at", "updated_at") VALUES
-	('474c52bb-c907-40c4-8cb1-993cfcdf2f38', 'adhd-quick-check', 'active', 'hu', '{"layout_version": 1, "ai_result_enabled": true, "email_gate_position": "end"}', '{"logo_url": "/logo-placeholder.svg", "calendly_url": "https://calendly.com/demo-account", "primary_color": "#3B82F6", "hero_image_url": "/hero-placeholder.jpg", "secondary_color": "#10B981"}', '2025-08-15 07:26:16.832689+00', '2025-08-15 07:26:16.832689+00');
+	('474c52bb-c907-40c4-8cb1-993cfcdf2f38', 'adhd-quick-check', 'active', 'hu', '{"layout_version": 1, "ai_result_enabled": true, "email_gate_position": "end"}', '{"logo_url": "/logo-placeholder.svg", "calendly_url": "https://calendly.com/demo-account", "primary_color": "#3B82F6", "hero_image_url": "/hero-placeholder.svg", "secondary_color": "#10B981"}', '2025-08-15 07:26:16.832689+00', '2025-08-15 07:26:16.832689+00');
 
 
 --
