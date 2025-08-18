@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   ai-generate-result:
@@ -13,42 +13,25 @@ jobs:
     timeout-minutes: 15
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       TEST_BASE_URL: http://localhost:3000
       MOCK_AI: 1
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Start app
-        run: npm run start &
-
+      - run: npm ci
+      - run: npm run build
+      - run: npm run start &
       - name: Wait for server
         run: |
-          for i in {1..60}; do
+          for i in {1..90}; do
             if curl -fsS http://localhost:3000/ > /dev/null; then
               echo "Server is up"; exit 0; fi; sleep 1; done
           echo "Server failed to start"; exit 1
-
-      - name: Apply migration (quiz_sessions columns + cache)
-        run: |
-          npm run migrate:quiz_sessions_cache || echo "Skipping migration apply (RPC helper not present)"
-
-      - name: Seed happy path
-        run: npm run seed:happy
-
-      - name: Run acceptance tests (mock AI)
-        run: npm run ci:accept:ai
+      - run: npm run migrate:quiz_sessions_cache || echo 'Skipping migration apply (RPC helper not present)'
+      - run: npm run seed:happy
+      - run: npm run ci:accept:ai
