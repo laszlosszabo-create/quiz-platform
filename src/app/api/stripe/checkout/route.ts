@@ -10,14 +10,12 @@ const checkoutSchema = z.object({
   lang: z.string().min(2).max(5)
 })
 
-// Initialize Stripe
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not set')
+// Lazy Stripe client to avoid build-time key requirement
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) throw new Error('STRIPE_SECRET_KEY is not set')
+  return new Stripe(key, { apiVersion: '2024-06-20' })
 }
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20',
-})
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe checkout session
-    const checkoutSession = await stripe.checkout.sessions.create({
+  const checkoutSession = await getStripe().checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [

@@ -5,17 +5,18 @@ import { getSupabaseAdmin } from '@/lib/supabase-config'
 // Get admin Supabase client for webhook operations
 const supabaseAdmin = getSupabaseAdmin()
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not set')
+function getStripeWebhookSecrets() {
+  const key = process.env.STRIPE_SECRET_KEY
+  const wh = process.env.STRIPE_WEBHOOK_SECRET
+  if (!key) throw new Error('STRIPE_SECRET_KEY is not set')
+  if (!wh) throw new Error('STRIPE_WEBHOOK_SECRET is not set')
+  return { key, wh }
 }
 
-if (!process.env.STRIPE_WEBHOOK_SECRET) {
-  throw new Error('STRIPE_WEBHOOK_SECRET is not set')
+function getStripe(): Stripe {
+  const { key } = getStripeWebhookSecrets()
+  return new Stripe(key, { apiVersion: '2024-06-20' })
 }
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20',
-})
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
@@ -31,10 +32,11 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(
+    const { wh } = getStripeWebhookSecrets()
+    event = getStripe().webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      wh
     )
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
