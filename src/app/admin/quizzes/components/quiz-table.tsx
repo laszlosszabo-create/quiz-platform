@@ -4,48 +4,27 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { getSupabaseClient } from '@/lib/supabase-config'
 import { useAdminUser } from '../../components/admin-auth-wrapper'
-import type { Database } from '@/types/database'
-
 type Quiz = {
   id: string
   slug: string
-  title: string
-  description?: string
-  language: string
-  isActive: boolean
-  isPremium: boolean
-  createdAt: string
-  funnelStep?: number
-  questionCount: number
+  status: 'draft' | 'active' | 'archived' | string
+  default_lang: string
+  created_at: string
+  translations?: Record<string, { title?: string }>
 }
 
 interface QuizTableProps {
   quizzes: Quiz[]
-  adminUser: { role: string }
 }
 
 export default function QuizTable({ quizzes }: QuizTableProps) {
   const adminUser = useAdminUser()
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
-  
+  const [loading, setLoading] = useState<string | null>(null)
   const supabase = getSupabaseClient()
 
   if (!adminUser) {
-    return <div>Loading...</div>
+    return <div>Betöltés…</div>
   }
-
-interface QuizTableProps {
-  quizzes: Quiz[]
-  adminUser: AdminUser
-}
-
-export default function QuizTable({ quizzes, adminUser }: QuizTableProps) {
-  const [loading, setLoading] = useState<string | null>(null)
-  
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
 
   const handleStatusChange = async (quizId: string, newStatus: string) => {
     if (adminUser.role === 'viewer') {

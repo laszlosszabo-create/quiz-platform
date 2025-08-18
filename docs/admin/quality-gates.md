@@ -16,11 +16,11 @@ Notes:
 
 ## Acceptance status summary (2025-08-18)
 
-- Helyi acceptance (mock): 404/200 PASS
-- CI: bekötve, első futás függőben (szükséges secretek: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-- Migráció: file jelen van; SQL Editoron keresztül alkalmazva – állapot bejegyzés: (függőben: dátum/idő, környezet)
+- Helyi acceptance (mock): 404/200 PASS (megerősítve)
+- CI: bekötve, első futás elindítva (mock) – eredmény függőben
+- Migráció: file jelen van; SQL Editoron keresztül alkalmazva – pontos dátum/idő + környezet: (kérjük megadni)
 - Hardcoded prompt: PASS (csak canonical `ai_prompt`)
-- quiz_sessions JSONB defaultok + cache refresh: PASS lesz, amint az SQL Editor migráció lefutott és eltűnnek a PGRST204 hibák
+- quiz_sessions JSONB defaultok + cache refresh: PASS (helyi sémacache próba alapján nincs PGRST204)
 
 How to verify locally:
 - Seed + test (mock): `npm run accept:ai:local`
@@ -28,9 +28,9 @@ How to verify locally:
 
 ## Állapotnapló (2025-08-18)
 
-- 2025-08-18 – Helyi mock acceptance: PASS (404/200)
-- 2025-08-18 – Schema cache probe: FAIL (PGRST204 a `result_snapshot` oszlopra) – migráció SQL Editorból szükséges
-- 2025-08-18 – CI workflow: bekötve, első futás a secretek beállítása után indítható (mock módban)
+- 2025-08-18 – Helyi mock acceptance: PASS (404/200) – megerősítve
+- 2025-08-18 – Schema cache probe: PASS (nincs PGRST204 a `scores`/`result_snapshot` frissítéskor)
+- 2025-08-18 – CI workflow: első futás elindítva (mock), eredmény függőben – frissítendő PASS/FAIL + UTC időbélyeggel
 # Admin Panel Quality Gates and Bug Ledger (2025-08-16)
 
 Use this living checklist to track readiness across the critical areas. Status legend: [x]=Green, [~]=Yellow, [ ]=Red.
