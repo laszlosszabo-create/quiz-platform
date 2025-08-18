@@ -3,8 +3,18 @@ import { Resend } from 'resend'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
 import { getEmailTemplate, renderTemplate, validateTemplateVariables, EmailVariables } from './email-templates'
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY!)
+// Lazily initialize Resend client to avoid build-time failure when key is missing in CI
+let resend: Resend | null = null
+function getResendClient(): Resend {
+  if (!resend) {
+    const key = process.env.RESEND_API_KEY
+    if (!key) {
+      throw new Error('RESEND_API_KEY is missing')
+    }
+    resend = new Resend(key)
+  }
+  return resend
+}
 
 // Get admin Supabase client
 const supabaseAdmin = getSupabaseAdmin()
@@ -78,7 +88,8 @@ export async function sendEmail(
     const rendered = renderTemplate(template, variables)
     
     // Send email via Resend
-    const { data, error } = await resend.emails.send({
+  const client = getResendClient()
+  const { data, error } = await client.emails.send({
       from: process.env.FROM_EMAIL || 'ADHD Quiz <quiz@adhd.hu>',
       to: [to],
       subject: rendered.subject,
