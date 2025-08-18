@@ -11,10 +11,7 @@ const generateResultSchema = z.object({
   lang: z.string().min(2).max(5)
 })
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Note: Do not instantiate OpenAI client at module scope to avoid build-time key checks in CI.
 
 export async function POST(request: NextRequest) {
   try {
@@ -84,6 +81,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      // Lazily create OpenAI client only when needed (avoids build-time key requirement)
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
       // Generate AI result with timeout
       const completion: any = await Promise.race([
         openai.chat.completions.create({
