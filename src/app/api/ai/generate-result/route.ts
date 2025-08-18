@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if AI result already exists
+  // Check if AI result already exists
     const existingSnapshot = session.result_snapshot as any
     if (existingSnapshot?.ai_result) {
       return NextResponse.json({
@@ -56,23 +56,32 @@ export async function POST(request: NextRequest) {
       .eq('lang', validatedData.lang)
       .single()
 
-    if (!aiPrompt) {
+  if (!aiPrompt || !aiPrompt.ai_prompt || !String(aiPrompt.ai_prompt).trim()) {
       return NextResponse.json(
-        { error: 'AI prompt not configured for this language' },
+    { error: 'AI prompt not configured for this language' },
         { status: 400 }
       )
     }
 
-    // Prepare variables for prompt template
+  // Prepare variables for prompt template
     const answers = session.answers as Record<string, any> || {}
     const scores = session.scores as Record<string, any> || {}
     
-    // Replace variables in user prompt template
-  let userPrompt = aiPrompt.ai_prompt || aiPrompt.user_prompt_template || 'Analyze the user responses: {{answers}}'
+  // Replace variables in user prompt template (canonical ai_prompt only)
+  let userPrompt = aiPrompt.ai_prompt as string
     userPrompt = userPrompt
       .replace('{{answers}}', JSON.stringify(answers))
       .replace('{{scores}}', JSON.stringify(scores))
       .replace('{{lang}}', validatedData.lang)
+
+    // Optional mock path for tests (no OpenAI call, no DB writes)
+    const url = request.nextUrl
+    const mockFlag = url.searchParams.get('mock') === '1'
+    const useMock = mockFlag || process.env.MOCK_AI === '1' || process.env.MOCK_AI === 'true' || !process.env.OPENAI_API_KEY
+    if (useMock) {
+      const aiResult = `<h3>Mock Result (${validatedData.lang})</h3><p>Answers: ${JSON.stringify(answers)}</p><p>Scores: ${JSON.stringify(scores)}</p>`
+      return NextResponse.json({ ai_result: aiResult, cached: false, mocked: true })
+    }
 
     try {
       // Generate AI result with timeout

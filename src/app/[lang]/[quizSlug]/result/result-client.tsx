@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Quiz, Session, QuizQuestion, QuizScoringRule, QuizPrompt, Product, QuizTranslation } from '@/types/database'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getTranslations } from '@/lib/translations'
 import { tracker } from '@/lib/tracking'
 
@@ -40,6 +41,7 @@ export function ResultClient({
   const [aiResult, setAiResult] = useState<string | null>(null)
   const [isLoadingAI, setIsLoadingAI] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
+  const [aiNotice, setAiNotice] = useState<string | null>(null)
 
   // Calculate scores and get result
   useEffect(() => {
@@ -135,10 +137,14 @@ export function ResultClient({
         const { ai_result } = await response.json()
         setAiResult(ai_result)
       } else {
-        console.warn('AI result generation failed, using fallback')
+        if (response.status === 400) {
+          setAiNotice('Az AI eredmény generálása nem elérhető ehhez a nyelvhez, mert nincs konfigurált AI prompt. A statikus eredmény kerül megjelenítésre.')
+        } else {
+          setAiNotice('Az AI eredmény generálása sikertelen. A statikus eredmény kerül megjelenítésre.')
+        }
       }
     } catch (error) {
-      console.warn('AI result generation error:', error)
+      setAiNotice('Az AI eredmény generálása nem érhető el. A statikus eredmény kerül megjelenítésre.')
     } finally {
       setIsLoadingAI(false)
     }
@@ -233,6 +239,13 @@ export function ResultClient({
       </header>
 
       <main className="px-4 py-8">
+        {aiNotice && (
+          <div className="max-w-4xl mx-auto mb-6">
+            <Alert className="bg-amber-50 border-amber-200 text-amber-900">
+              <AlertDescription>{aiNotice}</AlertDescription>
+            </Alert>
+          </div>
+        )}
         <div className="max-w-4xl mx-auto space-y-12">
           {/* Score Section */}
           {scoreResult && (

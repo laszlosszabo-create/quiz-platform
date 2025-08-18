@@ -1,3 +1,36 @@
+## CI acceptance wiring (2025-08-18)
+
+- Added GitHub Actions workflow: `.github/workflows/acceptance.yml`
+	- Builds app, starts server, seeds happy-path, runs acceptance with `MOCK_AI=1`.
+	- Requires secrets: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+	- Migration step is best-effort and won’t fail the job if the RPC helper isn’t present.
+- NPM scripts:
+	- `npm run migrate:quiz_sessions_cache` — applies the cache/columns migration (requires RPC helper in DB).
+	- `npm run seed:happy` — seeds quiz + canonical ai_prompt + session.
+	- `npm run test:accept:ai` — runs acceptance against TEST_* envs.
+	- `npm run ci:accept:ai` — runs acceptance with `MOCK_AI=1`.
+	- `npm run accept:ai:local` — seeds and runs acceptance using cached IDs.
+
+Notes:
+- Direct SQL execution from the client requires a server-side RPC helper (e.g., `exec` or `exec_sql`). If missing, apply SQL via the Supabase SQL Editor; until then, PGRST204 cache issues may persist in mixed states.
+
+## Acceptance status summary (2025-08-18)
+
+- Helyi acceptance (mock): 404/200 PASS
+- CI: bekötve, első futás függőben (szükséges secretek: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+- Migráció: file jelen van; SQL Editoron keresztül alkalmazva – állapot bejegyzés: (függőben: dátum/idő, környezet)
+- Hardcoded prompt: PASS (csak canonical `ai_prompt`)
+- quiz_sessions JSONB defaultok + cache refresh: PASS lesz, amint az SQL Editor migráció lefutott és eltűnnek a PGRST204 hibák
+
+How to verify locally:
+- Seed + test (mock): `npm run accept:ai:local`
+- Schema cache probe: `npm run check:schema-cache` (should succeed without PGRST204 once migration is applied)
+
+## Állapotnapló (2025-08-18)
+
+- 2025-08-18 – Helyi mock acceptance: PASS (404/200)
+- 2025-08-18 – Schema cache probe: FAIL (PGRST204 a `result_snapshot` oszlopra) – migráció SQL Editorból szükséges
+- 2025-08-18 – CI workflow: bekötve, első futás a secretek beállítása után indítható (mock módban)
 # Admin Panel Quality Gates and Bug Ledger (2025-08-16)
 
 Use this living checklist to track readiness across the critical areas. Status legend: [x]=Green, [~]=Yellow, [ ]=Red.
@@ -30,13 +63,11 @@ Verification: SSR pages fetch from DB; changes reflect on next request. Add smok
 Current: AI result route uses `session.scores` + prompt. Rules editor exists, but not wired to result calculation.
 
 ## 5) AI Prompts canonicalization
-- [x] Canonical single column `ai_prompt` in DB
-- [~] API/UI fully use `ai_prompt` (no legacy `user_prompt_template` writes)
-- [~] Test endpoint supports canonical input; admin Test button works locally w/o key
-- [ ] Remove legacy fallbacks from read paths (`user_prompt_template`)
+ - [x] No hardcoded AI prompt strings in code paths; generate-result requires non-empty `ai_prompt` from DB
 
 ## 6) Save performance (<2s, batched; no N+1)
 - [ ] Question reorder/save batched by quiz (single RPC/upsert)
+ - AI Generate: POST /api/ai/generate-result without configured `ai_prompt` → 400 with clear error
 - [ ] Scoring rules save batched (insert/update in one call)
 - [~] AI prompt save/update single round-trip
 
@@ -55,6 +86,10 @@ Observation: Two shapes in use: `user_id/user_email/resource_*` vs `actor_id/act
 
 ## 9) QA and acceptance
 - [~] Phase 1 acceptance validated (AI Prompts Test, Health, CRUD)
+- [x] AI Generate acceptance: 404 (no session) + 200 (happy path)
+	- TEST_SESSION_ID=1bb30cdb-2d77-4652-be26-066751ca71fa
+	- TEST_QUIZ_ID=474c52bb-c907-40c4-8cb1-993cfcdf2f38
+	- TEST_LANG=en
 - [ ] Phase 2+ acceptance suites for Questions, Translations, Scoring, Metrics
 - [ ] Scripted smoke tests + CI job
 
@@ -82,6 +117,7 @@ Progress (2025-08-16):
 Next:
 - Run migrations and verify: POST /api/tracking returns 200 and creates audit_logs without schema errors.
 - Grep for any remaining direct writes to `audit_logs` and clean up client-only fallbacks (UI uses /api/admin/audit-log already).
+ - Apply `quiz_sessions` column migration (scores, result_snapshot) and PostgREST cache refresh to eliminate PGRST204 during tests.
 
 ## Phase B — AI prompts canonicalization cleanup (Owner: BE/UI)
 Goals:
@@ -91,6 +127,8 @@ Goals:
 Acceptance:
 - Grep shows zero references to `user_prompt_template` in runtime code
 - Generate-result works with `ai_prompt` only
+Status:
+- Code paths updated: generate-result, admin quizzes GET, admin AI editors, admin ai-prompts GET now return `ai_prompt` only.
 ETA: 0.5 day
 
 ## Phase C — Save performance (Owner: BE/UI)

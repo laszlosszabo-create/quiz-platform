@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "tsx scripts/seed.ts"
+  "seed": "tsx scripts/seed.ts",
+  "seed:happy": "node scripts/seed-happy-path.js",
+  "migrate:quiz_sessions_cache": "node scripts/run-migration.js supabase/migrations/20250816120000_quiz_sessions_columns_and_cache_refresh.sql",
+  "test:accept:ai": "node test-generate-result.js",
+  "ci:accept:ai": "MOCK_AI=1 node test-generate-result.js",
+  "accept:ai:local": "npm run seed:happy && node -e \"const ids=require('./.cache/test-ids.json'); process.env.TEST_SESSION_ID=ids.TEST_SESSION_ID; process.env.TEST_QUIZ_ID=ids.TEST_QUIZ_ID; process.env.TEST_LANG=ids.TEST_LANG; require('./test-generate-result.js')\"",
+  "check:schema-cache": "node scripts/check-schema-cache.js"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

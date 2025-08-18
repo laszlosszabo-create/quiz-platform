@@ -62,9 +62,8 @@ export interface QuizScoringRule extends BaseEntity {
 export interface QuizPrompt extends BaseEntity {
   quiz_id: string
   lang: string
+  ai_prompt?: string
   system_prompt?: string
-  user_prompt?: string
-  user_prompt_template?: string
   ai_provider?: string
   ai_model?: string
   variables?: Json

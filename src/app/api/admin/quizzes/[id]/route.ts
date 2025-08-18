@@ -61,7 +61,7 @@ export async function GET(
     const prompts = (rawPrompts || []).map((p: any) => ({
       lang: p.lang,
       system_prompt: p.system_prompt || '',
-      user_prompt_template: p.user_prompt_template ?? p.ai_prompt ?? '',
+      ai_prompt: p.ai_prompt || '',
       variables: p.variables || null,
     }))
 
@@ -77,8 +77,8 @@ export async function GET(
       // Add convenience fields for default language
       title: translations?.find(t => t.lang === quiz.default_lang && t.field_key === 'title')?.value || '',
       description: translations?.find(t => t.lang === quiz.default_lang && t.field_key === 'description')?.value || '',
-      quiz_questions: questions || [],
-      scoring_rules: scoringRules || [],
+  quiz_questions: questions || [],
+  scoring_rules: scoringRules || [],
   prompts: prompts || []
     }
 

@@ -42,6 +42,7 @@ Status: Approved and In-Progress
 
 - Olvasás: `ai_prompt` → `user_prompt_template` aliasra map-pelve jelenítjük meg
 - Mentés: kizárólag `ai_prompt` írása (POST/PUT)
+  - 2025-08-16: Legacy input normalizáció (`user_prompt`, `user_prompt_template`) eltávolítva az admin API-ból; csak `ai_prompt` engedélyezett.
 - Validáció: kötelező változók ellenőrzése az `ai_prompt`-ban
 - HU/EN CRUD próba: mindkét nyelven létrehozás/mentés/törlés és visszatöltés
 

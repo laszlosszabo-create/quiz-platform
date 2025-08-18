@@ -98,7 +98,7 @@ export default function AIPromptsEditor({ quizData, onDataChange }: AIPromptsEdi
         id: currentPrompt.id,
         lang: currentLang,
         system_prompt: currentPrompt.system_prompt || '',
-    user_prompt: (currentPrompt as any).user_prompt_template || (currentPrompt as any).ai_prompt || '',
+        user_prompt: (currentPrompt as any).ai_prompt || '',
         ai_provider: 'openai', // Default since not stored in DB
         ai_model: 'gpt-4o' // Default since not stored in DB
       })

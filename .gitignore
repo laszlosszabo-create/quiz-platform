@@ -53,6 +53,9 @@ coverage/
 .cache
 .parcel-cache
 
+# Project local cache (seeded test IDs, etc.)
+/.cache/
+
 # TypeScript cache
 *.tsbuildinfo
 
