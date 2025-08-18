@@ -5,33 +5,26 @@ import { getSupabaseAdmin } from '@/lib/supabase-config'
 // Product validation schema - matching actual database schema
 const updateProductSchema = z.object({
   quiz_id: z.string().uuid().optional(),
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
   active: z.boolean().optional(),
-  price_cents: z.number().int().positive().optional(), // Stripe unit_amount format
+  price: z.number().positive().optional(), // Regular decimal price field
   currency: z.enum(['HUF', 'EUR', 'USD']).optional(),
+  stripe_product_id: z.string().nullable().optional(),
   stripe_price_id: z.string().nullable().optional(),
-  delivery_type: z.enum(['static_pdf', 'ai_generated', 'link']).optional(),
-  asset_url: z.string().url().nullable().optional(),
-  translations: z.object({
-    hu: z.object({
-      name: z.string().min(1),
-      description: z.string().optional()
-    }).optional(),
-    en: z.object({
-      name: z.string().min(1),
-      description: z.string().optional()
-    }).optional()
-  }).optional()
+  booking_url: z.string().url().nullable().optional(),
+  metadata: z.record(z.any()).optional()
 }).refine(data => Object.keys(data).length > 0, {
   message: "At least one field must be provided for update"
 }).refine((data) => {
-  // HUF validation: must be divisible by 100 (whole forints)
-  if (data.currency === 'HUF' && data.price_cents && data.price_cents % 100 !== 0) {
+  // HUF validation: should be whole forints for simplicity
+  if (data.currency === 'HUF' && data.price && data.price % 1 !== 0) {
     return false
   }
   return true
 }, {
-  message: "HUF prices must be in whole forints (price_cents divisible by 100)",
-  path: ["price_cents"]
+  message: "HUF prices should be whole forints",
+  path: ["price"]
 })
 
 // Get specific product
@@ -54,15 +47,15 @@ export async function GET(
         active,
         price,
         currency,
+        stripe_product_id,
         stripe_price_id,
-        delivery_type,
-        asset_url,
-        translations,
+        booking_url,
+        metadata,
         created_at,
         updated_at,
         quizzes!inner(id, slug, status)
       `)
-  .eq('id', id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -138,7 +131,7 @@ export async function PUT(
     const { data: product, error: updateError } = await supabase
       .from('products')
       .update(validatedData)
-  .eq('id', id)
+      .eq('id', id)
       .select(`
         id,
         quiz_id,
@@ -147,10 +140,10 @@ export async function PUT(
         active,
         price,
         currency,
+        stripe_product_id,
         stripe_price_id,
-        delivery_type,
-        asset_url,
-        translations,
+        booking_url,
+        metadata,
         created_at,
         updated_at
       `)

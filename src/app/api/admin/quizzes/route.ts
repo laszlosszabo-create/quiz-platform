@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       .from('quizzes')
       .select(`
         id,
-        title,
         slug,
         status,
         default_lang,
@@ -49,7 +48,6 @@ export async function GET(request: NextRequest) {
 
       return {
         id: quiz.id,
-        title: quiz.title,
         slug: quiz.slug,
         status: quiz.status,
         default_lang: quiz.default_lang,

@@ -12,6 +12,7 @@ import ScoringRulesEditor from './components/scoring-rules-editor'
 import AIPromptsEditor from './components/ai-prompts-editor'
 // TODO: Create remaining components
 // import ProductsEditor from './components/products-editor'
+import ProductsEditor from './components/products-editor'
 // import EmailTemplatesEditor from './components/email-templates-editor'
 // import AuditLogViewer from './components/audit-log-viewer'
 
@@ -212,10 +213,10 @@ function QuizEditorContent() {
         )
       case 'products':
         return (
-          <div className="p-8 text-center bg-gray-50 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Products Editor</h3>
-            <p className="text-gray-600">Ez a komponens még fejlesztés alatt áll...</p>
-          </div>
+          <ProductsEditor
+            quizData={quizData}
+            onDataChange={handleFieldChange}
+          />
         )
       case 'emails':
         return (

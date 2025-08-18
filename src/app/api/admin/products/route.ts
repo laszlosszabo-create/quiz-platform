@@ -5,10 +5,10 @@ import { getSupabaseAdmin } from '@/lib/supabase-config'
 // Product validation schemas - FINAL CORRECT SCHEMA
 const baseProductSchema = z.object({
   quiz_id: z.string().uuid(),
-  name: z.string().min(1), // Required field
+  name: z.string().min(1),
   description: z.string().optional().nullable(),
   active: z.boolean().default(true),
-  price: z.number().positive(), // Required price field
+  price: z.number().positive(),
   currency: z.enum(['HUF', 'EUR', 'USD']).default('HUF'),
   stripe_product_id: z.string().optional().nullable(),
   stripe_price_id: z.string().optional().nullable(),
@@ -17,7 +17,7 @@ const baseProductSchema = z.object({
 })
 
 const createProductSchema = baseProductSchema.refine((data) => {
-  // HUF validation: should be whole forints (no decimal places for simplicity)
+  // HUF validation: should be whole forints for simplicity
   if (data.currency === 'HUF' && data.price % 1 !== 0) {
     return false
   }
@@ -27,7 +27,9 @@ const createProductSchema = baseProductSchema.refine((data) => {
   path: ["price"]
 })
 
-const updateProductSchema = baseProductSchema.partial()
+const updateProductSchema = baseProductSchema.partial().refine(data => Object.keys(data).length > 0, {
+  message: "At least one field must be provided for update"
+})
 
 // Stripe price validation function
 async function validateStripePrice(stripe_price_id: string): Promise<boolean> {
@@ -153,9 +155,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create product
+    const insertData = {
+      quiz_id: validatedData.quiz_id,
+      name: validatedData.name,
+      description: validatedData.description,
+      price: validatedData.price,
+      currency: validatedData.currency,
+      active: validatedData.active,
+      stripe_product_id: validatedData.stripe_product_id || null,
+      stripe_price_id: validatedData.stripe_price_id || null,
+      booking_url: validatedData.booking_url || null,
+      metadata: validatedData.metadata || {}
+    }
+    
     const { data: product, error: createError } = await supabase
       .from('products')
-      .insert(validatedData)
+      .insert(insertData)
       .select(`
         id,
         quiz_id,
