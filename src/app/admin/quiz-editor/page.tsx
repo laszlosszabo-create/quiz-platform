@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import AdminAuthWrapper from '../components/admin-auth-wrapper'
+import EmailTemplatesEditor from './components/email-templates-editor'
+import AdminAuthWrapper from '@/app/admin/components/admin-auth-wrapper'
 
 // Import all editor components based on documentation
 import QuizMetaEditor from './components/quiz-meta-editor'
@@ -227,10 +228,10 @@ function QuizEditorContent() {
         )
       case 'emails':
         return (
-          <div className="p-8 text-center bg-gray-50 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Email Templates Editor</h3>
-            <p className="text-gray-600">Ez a komponens még fejlesztés alatt áll...</p>
-          </div>
+          <EmailTemplatesEditor
+            quizId={quizData?.id || ''}
+            products={quizData?.products || []}
+          />
         )
       case 'audit':
         return (
