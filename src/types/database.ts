@@ -93,12 +93,17 @@ export interface Session extends BaseEntity {
 export interface Product extends BaseEntity {
   quiz_id: string
   active: boolean
-  price_cents: number
+  price: number  // Changed from price_cents to price
+  compared_price?: number  // NEW: For discount display
   currency: string
   stripe_price_id?: string
   delivery_type: ProductDeliveryType
   asset_url?: string
   translations?: Json
+  name?: string
+  description?: string
+  booking_url?: string
+  metadata?: Json
 }
 
 export interface Order extends BaseEntity {

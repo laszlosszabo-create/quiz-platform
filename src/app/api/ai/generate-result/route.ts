@@ -64,12 +64,61 @@ export async function POST(request: NextRequest) {
     const answers = session.answers as Record<string, any> || {}
     const scores = session.scores as Record<string, any> || {}
     
+    // Get quiz data for title and questions
+    const { data: quizData } = await supabase
+      .from('quizzes')
+      .select('title, slug')
+      .eq('id', validatedData.quiz_id)
+      .single()
+
+    // Get questions for this quiz
+    const { data: questions } = await supabase
+      .from('quiz_questions')
+      .select('question_text, order_index')
+      .eq('quiz_id', validatedData.quiz_id)
+      .order('order_index')
+
+    // Prepare user data
+    const userName = session.user_name || 'Kedves Felhasználó'
+    const userEmail = session.user_email || ''
+    
+    // Calculate percentage and category
+    const totalScore = Object.values(scores).reduce((sum: number, score) => sum + (Number(score) || 0), 0)
+    const maxPossibleScore = Object.keys(answers).length * 5 // Assuming max 5 points per question
+    const percentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0
+    
+    // Determine category based on score
+    let category = 'Alacsony'
+    if (percentage > 60) category = 'Magas'
+    else if (percentage > 30) category = 'Közepes'
+    
+    // Format questions list
+    const questionsList = questions?.map((q, idx) => `${idx + 1}. ${q.question_text}`).join('\n') || ''
+    
+    // Format answers list
+    const answersList = Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join('\n')
+    
+    // Format questions and answers pairs
+    const questionsAndAnswers = questions?.map((q, idx) => {
+      const questionKey = `question_${q.order_index + 1}`
+      const answer = answers[questionKey] || 'Nincs válasz'
+      return `Kérdés ${idx + 1}: ${q.question_text}\nVálasz: ${answer}`
+    }).join('\n\n') || ''
+
   // Replace variables in user prompt template (canonical ai_prompt only)
   let userPrompt = aiPrompt.ai_prompt as string
     userPrompt = userPrompt
-      .replace('{{answers}}', JSON.stringify(answers))
-      .replace('{{scores}}', JSON.stringify(scores))
-      .replace('{{lang}}', validatedData.lang)
+      .replace(/\{\{score\}\}/g, totalScore.toString())
+      .replace(/\{\{percentage\}\}/g, percentage.toString())
+      .replace(/\{\{category\}\}/g, category)
+      .replace(/\{\{answers\}\}/g, answersList)
+      .replace(/\{\{questions\}\}/g, questionsList)
+      .replace(/\{\{questions_and_answers\}\}/g, questionsAndAnswers)
+      .replace(/\{\{name\}\}/g, userName)
+      .replace(/\{\{email\}\}/g, userEmail)
+      .replace(/\{\{product_name\}\}/g, 'Quiz Termék') // This should be dynamic if product context available
+      .replace(/\{\{quiz_title\}\}/g, quizData?.title || 'Quiz')
+      .replace(/\{\{lang\}\}/g, validatedData.lang)
 
     // Optional mock path for tests (no OpenAI call, no DB writes)
     const url = request.nextUrl

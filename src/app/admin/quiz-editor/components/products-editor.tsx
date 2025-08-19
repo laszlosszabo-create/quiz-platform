@@ -59,6 +59,7 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
     quiz_id: quizData?.id || '',
     active: true,
     price: 0,
+    compared_price: 0, // NEW: Comparison price for discounts
     currency: 'HUF' as 'HUF' | 'EUR' | 'USD',
     stripe_product_id: '',
     stripe_price_id: '',
@@ -116,6 +117,7 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
         name: formData.translations.hu.name.trim(),
         description: formData.translations.hu.description?.trim() || null,
         price: formData.price,
+        compared_price: formData.compared_price || null,
         currency: formData.currency,
         active: formData.active,
         stripe_product_id: formData.stripe_product_id?.trim() || null,
@@ -183,6 +185,7 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
           name: formData.translations.hu.name,
           description: formData.translations.hu.description,
           price: formData.price,
+          compared_price: formData.compared_price || null,
           currency: formData.currency,
           active: formData.active,
           stripe_product_id: formData.stripe_product_id,
@@ -237,6 +240,7 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
       quiz_id: quizData?.id || '',
       active: true,
       price: 0,
+      compared_price: 0,
       currency: 'HUF',
       stripe_product_id: '',
       stripe_price_id: '',
@@ -261,6 +265,7 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
       quiz_id: product.quiz_id,
       active: product.active,
       price: product.price,
+      compared_price: (product as any).compared_price || 0, // Handle missing field gracefully
       currency: product.currency,
       stripe_product_id: product.stripe_product_id || '',
       stripe_price_id: product.stripe_price_id || '',
@@ -535,7 +540,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, saving, error }:
         <TabsContent value="pricing" className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Ár *</Label>
+              <Label htmlFor="price">Akciós Ár *</Label>
               <Input
                 id="price"
                 type="number"
@@ -546,10 +551,28 @@ function ProductForm({ formData, setFormData, onSave, onCancel, saving, error }:
                 placeholder="0"
               />
               <div className="text-xs text-gray-500">
-                Ár normál formátumban (pl. 5990.00)
+                Az aktuális eladási ár (pl. 5990.00)
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="compared_price">Eredeti Ár (áthúzott)</Label>
+              <Input
+                id="compared_price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.compared_price}
+                onChange={(e) => setFormData({...formData, compared_price: parseFloat(e.target.value) || 0})}
+                placeholder="0"
+              />
+              <div className="text-xs text-gray-500">
+                Opcionális - magasabb ár kedvezmény megjelenítéshez
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="currency">Pénznem</Label>
               <Select value={formData.currency} onValueChange={(value: 'HUF' | 'EUR' | 'USD') => setFormData({...formData, currency: value})}>
@@ -563,20 +586,20 @@ function ProductForm({ formData, setFormData, onSave, onCancel, saving, error }:
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="delivery_type">Szállítási mód</Label>
-            <Select value={formData.delivery_type} onValueChange={(value: 'static_pdf' | 'ai_generated' | 'link') => setFormData({...formData, delivery_type: value})}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ai_generated">AI Generált jelentés</SelectItem>
-                <SelectItem value="static_pdf">Statikus PDF</SelectItem>
-                <SelectItem value="link">Külső link</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label htmlFor="delivery_type">Szállítási mód</Label>
+              <Select value={formData.delivery_type} onValueChange={(value: 'static_pdf' | 'ai_generated' | 'link') => setFormData({...formData, delivery_type: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ai_generated">AI Generált jelentés</SelectItem>
+                  <SelectItem value="static_pdf">Statikus PDF</SelectItem>
+                  <SelectItem value="link">Külső link</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </TabsContent>
 

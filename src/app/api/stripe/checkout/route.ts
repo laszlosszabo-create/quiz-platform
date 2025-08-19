@@ -71,12 +71,12 @@ export async function POST(request: NextRequest) {
 
     const customerEmail = lead?.email
 
-    // Build base URL for redirects - ensure HTTPS for Stripe
+    // Build base URL for redirects - handle localhost development
     let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin')
     
-    // Fallback to localhost with https for Stripe compatibility
+    // For localhost development, use HTTP (Stripe test mode supports this)
     if (!baseUrl || baseUrl.startsWith('http://localhost')) {
-      baseUrl = 'https://localhost:3000'
+      baseUrl = 'http://localhost:3000'  // Fix: Use correct port
     }
 
     // Create Stripe checkout session
@@ -96,8 +96,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/${validatedData.lang}/${quiz?.slug}/result?session_id=${validatedData.session_id}&payment=success&stripe_session={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/${validatedData.lang}/${quiz?.slug}/result?session_id=${validatedData.session_id}&payment=cancelled`,
+      success_url: `${baseUrl}/${validatedData.lang}/product/${validatedData.product_id}/result?session_id=${validatedData.session_id}&payment=success&stripe_session={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/${validatedData.lang}/product/${validatedData.product_id}/result?session_id=${validatedData.session_id}&payment=cancelled`,
       customer_email: customerEmail || undefined,
       metadata: {
         product_id: validatedData.product_id,
@@ -115,10 +115,11 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        event_name: 'checkout_start',
-        data: {
-          quiz_slug: quiz?.slug,
-          session_id: validatedData.session_id,
+        event: 'checkout_start',
+        quiz_id: session.quiz_id,
+        session_id: validatedData.session_id,
+        timestamp: new Date().toISOString(),
+        metadata: {
           product_id: validatedData.product_id,
           price: product.price,
           lang: validatedData.lang,

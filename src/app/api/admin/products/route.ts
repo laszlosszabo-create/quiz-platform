@@ -2,17 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
 
-// Product validation schemas - FINAL CORRECT SCHEMA
+// Base product validation schemas - FINAL CORRECT SCHEMA
 const baseProductSchema = z.object({
   quiz_id: z.string().uuid(),
   name: z.string().min(1),
   description: z.string().optional().nullable(),
   active: z.boolean().default(true),
   price: z.number().positive(),
+  compared_price: z.number().min(0).optional().nullable(), // NEW: for showing discounts
   currency: z.enum(['HUF', 'EUR', 'USD']).default('HUF'),
   stripe_product_id: z.string().optional().nullable(),
   stripe_price_id: z.string().optional().nullable(),
-  booking_url: z.string().url().optional().nullable().or(z.literal('')),
+  booking_url: z.string().optional().nullable().transform(val => {
+    // Handle empty strings by converting to null
+    if (val === '') return null
+    // If not empty, validate URL format
+    if (val && !val.startsWith('http')) {
+      throw new Error('booking_url must be a valid URL starting with http:// or https://')
+    }
+    return val
+  }),
   metadata: z.record(z.any()).default({})
 })
 
@@ -135,6 +144,18 @@ export async function POST(request: NextRequest) {
 
     const validatedData = validationResult.data
 
+    // Validate URL if provided and not empty
+    if (validatedData.booking_url && validatedData.booking_url.trim() !== '') {
+      try {
+        new URL(validatedData.booking_url)
+      } catch (error) {
+        return NextResponse.json(
+          { error: 'Invalid booking URL format' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Validate Stripe price if provided
     if (validatedData.stripe_price_id) {
       const isValidStripePrice = await validateStripePrice(validatedData.stripe_price_id)
@@ -172,6 +193,7 @@ export async function POST(request: NextRequest) {
       name: validatedData.name,
       description: validatedData.description || null,
       price: validatedData.price,
+      compared_price: validatedData.compared_price || null,
       currency: validatedData.currency,
       active: validatedData.active,
       stripe_product_id: validatedData.stripe_product_id || null,

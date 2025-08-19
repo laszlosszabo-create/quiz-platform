@@ -43,6 +43,38 @@ export function ResultClient({
   const [showCheckout, setShowCheckout] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [aiNotice, setAiNotice] = useState<string | null>(null)
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null)
+
+  // Check payment status from URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const paymentStatus = urlParams.get('payment')
+    const stripeSession = urlParams.get('stripe_session')
+    
+    if (paymentStatus === 'success' && stripeSession) {
+      setPaymentSuccess('Sikeres fizetés! Köszönjük a vásárlást.')
+      
+      // Track purchase success
+      if (product) {
+        tracker.trackPurchaseSucceeded(
+          quiz.id,
+          session.id,
+          stripeSession,
+          product.price
+        ).catch(err => console.error('Purchase tracking failed:', err))
+      }
+      
+      // Clean up URL parameters
+      const cleanUrl = window.location.pathname + window.location.search.replace(/[?&]payment=success[^&]*/, '').replace(/[?&]stripe_session=[^&]*/, '')
+      window.history.replaceState({}, '', cleanUrl)
+    } else if (paymentStatus === 'cancelled') {
+      setPaymentSuccess('Fizetés megszakítva.')
+      
+      // Clean up URL parameters  
+      const cleanUrl = window.location.pathname + window.location.search.replace(/[?&]payment=cancelled[^&]*/, '')
+      window.history.replaceState({}, '', cleanUrl)
+    }
+  }, [])
 
   // Calculate scores and get result
   useEffect(() => {
@@ -51,12 +83,13 @@ export function ResultClient({
     // Check analysis type setting and generate AI result if needed
     const analysisType = featureFlags.result_analysis_type || 'both' // 'score', 'ai', or 'both'
     
-    if ((analysisType === 'ai' || analysisType === 'both') && !session.result_snapshot) {
-      generateAIResult()
-    } else if (session.result_snapshot) {
-      // Use existing AI result
+    if (analysisType === 'ai' || analysisType === 'both') {
       const snapshot = session.result_snapshot as any
-      if (snapshot.ai_result) {
+      const hasAiResult = snapshot?.ai_result
+      
+      if (!hasAiResult) {
+        generateAIResult()
+      } else {
         setAiResult(snapshot.ai_result)
       }
     }
@@ -172,8 +205,18 @@ export function ResultClient({
       })
 
       if (response.ok) {
-        const { ai_result } = await response.json()
+        const { ai_result, cached } = await response.json()
         setAiResult(ai_result)
+        
+        // Update local session state to prevent re-generation
+        if (!cached) {
+          const currentSnapshot = session.result_snapshot as Record<string, any> || {}
+          session.result_snapshot = {
+            ...currentSnapshot,
+            ai_result,
+            generated_at: new Date().toISOString()
+          } as any
+        }
       } else {
         if (response.status === 400) {
           setAiNotice('Az AI eredmény generálása nem elérhető ehhez a nyelvhez, mert nincs konfigurált AI prompt. A statikus eredmény kerül megjelenítésre.')
@@ -293,6 +336,14 @@ export function ResultClient({
       </header>
 
       <main className="px-4 py-8 relative">
+        {paymentSuccess && (
+          <div className="max-w-4xl mx-auto mb-6">
+            <Alert className="bg-green-50 border-green-200 text-green-900 rounded-2xl shadow-sm">
+              <AlertDescription>{paymentSuccess}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         {aiNotice && (
           <div className="max-w-4xl mx-auto mb-6">
             <Alert className="bg-amber-50 border-amber-200 text-amber-900 rounded-2xl shadow-sm">
@@ -381,10 +432,22 @@ export function ResultClient({
                   </div>
                 )}
                 
-                {!isLoadingAI && !aiResult && scoreResult && analysisType === 'ai' && (
+                {!isLoadingAI && !aiResult && analysisType === 'ai' && (
                   <div className="prose prose-lg max-w-none">
-                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-l-4 border-blue-500">
-                      <p className="text-gray-700 text-lg leading-relaxed">{scoreResult.description}</p>
+                    <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 border-l-4 border-orange-500">
+                      {aiNotice ? (
+                        <div className="text-center">
+                          <div className="text-orange-600 text-lg mb-2">⚠️ AI Elemzés Nem Elérhető</div>
+                          <p className="text-gray-700 text-base leading-relaxed">{aiNotice}</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-orange-600 text-lg mb-2">🤖 AI Elemzés Generálása</div>
+                          <p className="text-gray-700 text-base leading-relaxed">
+                            Az AI elemzés generálása folyamatban van. Kérem várjon...
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -452,13 +515,15 @@ export function ResultClient({
                       <div className="text-sm text-green-100 mb-2">Egyedi ár ma:</div>
                       <div className="flex items-center justify-center gap-2">
                         <span className="text-5xl font-bold text-white">
-                          {Math.round(product.price_cents / 100)}
+                          {product.price}
                         </span>
                         <div className="text-left">
                           <div className="text-lg text-green-100">{product.currency}</div>
-                          <div className="text-sm text-green-200 line-through">
-                            {Math.round(product.price_cents / 100 * 1.5)} {product.currency}
-                          </div>
+                          {(product as any).compared_price && (product as any).compared_price > product.price && (
+                            <div className="text-sm text-green-200 line-through">
+                              {(product as any).compared_price} {product.currency}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-sm text-green-100 mt-2">🔒 Biztonságos fizetés</div>

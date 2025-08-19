@@ -7,12 +7,14 @@ import AdminAuthWrapper from '../components/admin-auth-wrapper'
 // Import all editor components based on documentation
 import QuizMetaEditor from './components/quiz-meta-editor'
 import TranslationEditor, { type TranslationEditorHandle } from './components/translation-editor'
+import AdvancedTranslationEditor from './components/advanced-translation-editor'
 import QuestionsEditor from './components/questions-editor'
 import ScoringRulesEditor from './components/scoring-rules-editor'
 import AIPromptsEditor from './components/ai-prompts-editor'
 // TODO: Create remaining components
 // import ProductsEditor from './components/products-editor'
 import ProductsEditor from './components/products-editor'
+import ProductConfigsEditor from './components/product-configs-editor'
 // import EmailTemplatesEditor from './components/email-templates-editor'
 // import AuditLogViewer from './components/audit-log-viewer'
 
@@ -35,15 +37,16 @@ interface QuizData {
   updated_at: string
 }
 
-type TabType = 'meta' | 'translations' | 'questions' | 'scoring' | 'ai-prompts' | 'products' | 'emails' | 'audit'
+type TabType = 'meta' | 'advanced-translations' | 'questions' | 'scoring' | 'ai-prompts' | 'products' | 'product-configs' | 'emails' | 'audit'
 
 const tabs: { id: TabType; label: string; icon: string }[] = [
   { id: 'meta', label: 'Quiz Meta', icon: '⚙️' },
-  { id: 'translations', label: 'Fordítások', icon: '🌐' },
+  { id: 'advanced-translations', label: 'Fordítások', icon: '🌍' },
   { id: 'questions', label: 'Kérdések', icon: '❓' },
   { id: 'scoring', label: 'Pontozás', icon: '🎯' },
   { id: 'ai-prompts', label: 'AI Promptok', icon: '🤖' },
   { id: 'products', label: 'Termékek', icon: '💰' },
+  { id: 'product-configs', label: 'Termék Konfig', icon: '🎨' },
   { id: 'emails', label: 'Email sablonok', icon: '📧' },
   { id: 'audit', label: 'Audit Log', icon: '📋' }
 ]
@@ -181,13 +184,10 @@ function QuizEditorContent() {
             onDataChange={handleDataChange}
           />
         )
-      case 'translations':
+      case 'advanced-translations':
         return (
-          <TranslationEditor 
-            ref={translationEditorRef}
-            quizData={quizData}
-            onDataChange={handleDataChange}
-            onDirtyChange={(dirty) => setUnsavedChanges(dirty)}
+          <AdvancedTranslationEditor 
+            quizId={quizData?.id || ''}
           />
         )
       case 'questions':
@@ -216,6 +216,13 @@ function QuizEditorContent() {
           <ProductsEditor
             quizData={quizData}
             onDataChange={handleFieldChange}
+          />
+        )
+      case 'product-configs':
+        return (
+          <ProductConfigsEditor
+            quizId={quizData?.id || ''}
+            products={quizData?.products || []}
           />
         )
       case 'emails':
