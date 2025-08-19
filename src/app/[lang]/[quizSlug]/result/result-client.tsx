@@ -41,14 +41,17 @@ export function ResultClient({
   const [aiResult, setAiResult] = useState<string | null>(null)
   const [isLoadingAI, setIsLoadingAI] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [aiNotice, setAiNotice] = useState<string | null>(null)
 
   // Calculate scores and get result
   useEffect(() => {
     calculateScores()
     
-    // Check if AI is enabled and we need to generate AI result
-    if (featureFlags.ai_result_enabled !== false && !session.result_snapshot) {
+    // Check analysis type setting and generate AI result if needed
+    const analysisType = featureFlags.result_analysis_type || 'both' // 'score', 'ai', or 'both'
+    
+    if ((analysisType === 'ai' || analysisType === 'both') && !session.result_snapshot) {
       generateAIResult()
     } else if (session.result_snapshot) {
       // Use existing AI result
@@ -87,28 +90,63 @@ export function ResultClient({
       }
     })
 
-    // Determine category based on thresholds
-    const scoringRule = scoringRules[0]
-    const thresholds = scoringRule?.thresholds as any || { low: 10, medium: 20, high: 999 }
-    
+    // NEW: Dynamic category determination based on scoring rules from database
     let category: 'low' | 'medium' | 'high' = 'low'
-    if (totalScore > thresholds.high) {
-      category = 'high'
-    } else if (totalScore > thresholds.medium) {
-      category = 'medium'
+    let description = `Your score is ${totalScore}`
+    
+    if (scoringRules && scoringRules.length > 0) {
+      // Use the first scoring rule (admin-configured)
+      const rule = scoringRules[0]
+      const weights = rule.weights as any || {}
+      
+      // Determine category based on admin-configured thresholds
+      const threshold = weights.threshold || 50
+      const minScore = weights.min_score || 0
+      const maxScore = weights.max_score || 100
+      
+      // Calculate score percentage for more flexible categorization
+      const scorePercentage = ((totalScore - minScore) / (maxScore - minScore)) * 100
+      
+      if (scorePercentage >= threshold) {
+        category = 'high'
+      } else if (scorePercentage >= threshold * 0.6) { // 60% of threshold for medium
+        category = 'medium'
+      } else {
+        category = 'low'
+      }
+      
+      // Use admin-configured result template if available
+      if (weights.result_template) {
+        description = weights.result_template
+          .replace('{score}', totalScore.toString())
+          .replace('{category}', weights.category || category)
+          .replace('{percentage}', Math.round(scorePercentage).toString())
+      }
+    } else {
+      // Fallback to hardcoded logic if no scoring rules configured
+      console.warn('No scoring rules found, using fallback logic')
+      const fallbackThresholds = { low: 10, medium: 20, high: 999 }
+      
+      if (totalScore > fallbackThresholds.high) {
+        category = 'high'
+      } else if (totalScore > fallbackThresholds.medium) {
+        category = 'medium'
+      }
     }
 
-    // Get static description from translations
-    const translations = getTranslations(
-      allTranslations,
-      lang,
-      [`result_static_${category}`, `result_${category}_description`],
-      quiz.default_lang
-    )
+    // Get static description from translations as fallback
+    if (!scoringRules || scoringRules.length === 0) {
+      const translations = getTranslations(
+        allTranslations,
+        lang,
+        [`result_static_${category}`, `result_${category}_description`],
+        quiz.default_lang
+      )
 
-    const description = translations[`result_static_${category}`] || 
-                       translations[`result_${category}_description`] || 
-                       `Your score is ${totalScore} (${category} category)`
+      description = translations[`result_static_${category}`] || 
+                   translations[`result_${category}_description`] || 
+                   description
+    }
 
     setScoreResult({
       totalScore,
@@ -156,7 +194,7 @@ export function ResultClient({
     }
   }
 
-  const handleCheckoutStart = () => {
+  const handleProductPurchase = () => {
     if (product) {
       tracker.trackCheckoutStart(quiz.id, session.id, product.id)
       setShowCheckout(true)
@@ -173,6 +211,8 @@ export function ResultClient({
   const startCheckout = async () => {
     if (!product) return
 
+    setIsProcessingPayment(true)
+    
     try {
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -192,10 +232,12 @@ export function ResultClient({
       } else {
         console.error('Checkout creation failed')
         setShowCheckout(false)
+        setIsProcessingPayment(false)
       }
     } catch (error) {
       console.error('Checkout error:', error)
       setShowCheckout(false)
+      setIsProcessingPayment(false)
     }
   }
 
@@ -220,9 +262,10 @@ export function ResultClient({
   const productName = productTranslations[lang]?.name || productTranslations[quiz.default_lang]?.name || 'Premium Report'
   const productDescription = productTranslations[lang]?.description || productTranslations[quiz.default_lang]?.description
 
-  // Get theme values
+  // Get theme values and analysis type
   const primaryColor = theme.primary_color || '#3B82F6'
   const calendlyUrl = theme.calendly_url
+  const analysisType = featureFlags.result_analysis_type || 'both' // 'score', 'ai', or 'both'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -259,15 +302,15 @@ export function ResultClient({
         )}
 
         <div className="max-w-6xl mx-auto space-y-8">
-          {/* Score Section - Modern Card Design */}
-          {scoreResult && (
+          {/* Score Section - Modern Card Design (csak ha engedélyezve) */}
+          {(analysisType === 'score' || analysisType === 'both') && scoreResult && (
             <section className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full -translate-y-16 translate-x-16"></div>
               <div className="relative">
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                      Az Eredményed Kategória
+                      {analysisType === 'both' ? 'Pont Alapú Elemzés' : 'Az Eredményed Kategória'}
                     </h2>
                     <div className="flex items-center gap-4">
                       <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
@@ -294,58 +337,60 @@ export function ResultClient({
             </section>
           )}
 
-          {/* AI Result Section - Premium Design */}
-          <section className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                <span className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  🧠
-                </span>
-                Személyre Szabott AI Elemzés
-              </h2>
-              <p className="text-blue-100 mt-2">Speciálisan az Ön válaszai alapján generált részletes értékelés</p>
-            </div>
-            
-            <div className="p-8">
-              {isLoadingAI && (
-                <div className="text-center py-12">
-                  <div className="relative">
-                    <div className="w-16 h-16 mx-auto mb-6 relative">
-                      <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      AI Elemzés Generálása...
-                    </h3>
-                    <p className="text-gray-600">
-                      {resultTranslations.result_ai_loading || 'Személyre szabott elemzést készítünk az Ön válaszai alapján...'}
-                    </p>
-                    <div className="mt-6 flex items-center justify-center gap-2">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
+          {/* AI Result Section - Premium Design (csak ha engedélyezve) */}
+          {(analysisType === 'ai' || analysisType === 'both') && (
+            <section className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <span className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    🧠
+                  </span>
+                  {analysisType === 'both' ? 'AI Alapú Elemzés' : 'Személyre Szabott AI Elemzés'}
+                </h2>
+                <p className="text-blue-100 mt-2">Speciálisan az Ön válaszai alapján generált részletes értékelés</p>
+              </div>
               
-              {aiResult && (
-                <div className="prose prose-lg max-w-none">
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-l-4 border-blue-500">
-                    <div dangerouslySetInnerHTML={{ __html: aiResult.replace(/\n/g, '<br />') }} />
+              <div className="p-8">
+                {isLoadingAI && (
+                  <div className="text-center py-12">
+                    <div className="relative">
+                      <div className="w-16 h-16 mx-auto mb-6 relative">
+                        <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+                        <div className="absolute inset-0 border-4 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        AI Elemzés Generálása...
+                      </h3>
+                      <p className="text-gray-600">
+                        {resultTranslations.result_ai_loading || 'Személyre szabott elemzést készítünk az Ön válaszai alapján...'}
+                      </p>
+                      <div className="mt-6 flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {!isLoadingAI && !aiResult && scoreResult && (
-                <div className="prose prose-lg max-w-none">
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-l-4 border-blue-500">
-                    <p className="text-gray-700 text-lg leading-relaxed">{scoreResult.description}</p>
+                )}
+                
+                {aiResult && (
+                  <div className="prose prose-lg max-w-none">
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-l-4 border-blue-500">
+                      <div dangerouslySetInnerHTML={{ __html: aiResult.replace(/\n/g, '<br />') }} />
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </section>
+                )}
+                
+                {!isLoadingAI && !aiResult && scoreResult && analysisType === 'ai' && (
+                  <div className="prose prose-lg max-w-none">
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-l-4 border-blue-500">
+                      <p className="text-gray-700 text-lg leading-relaxed">{scoreResult.description}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Product Section - High Converting Design */}
           {product && (
@@ -421,7 +466,7 @@ export function ResultClient({
 
                     {/* CTA Button */}
                     <button
-                      onClick={handleCheckoutStart}
+                      onClick={handleProductPurchase}
                       disabled={showCheckout}
                       className="w-full bg-white hover:bg-gray-50 disabled:bg-gray-200 text-green-600 font-bold text-xl px-8 py-4 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-xl disabled:scale-100"
                     >

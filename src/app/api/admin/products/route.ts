@@ -12,7 +12,7 @@ const baseProductSchema = z.object({
   currency: z.enum(['HUF', 'EUR', 'USD']).default('HUF'),
   stripe_product_id: z.string().optional().nullable(),
   stripe_price_id: z.string().optional().nullable(),
-  booking_url: z.string().url().optional().nullable(),
+  booking_url: z.string().url().optional().nullable().or(z.literal('')),
   metadata: z.record(z.any()).default({})
 })
 
@@ -119,9 +119,21 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin()
     
     const body = await request.json()
-    console.log('Creating product:', body)
+    console.log('Creating product with data:', body)
 
-    const validatedData = createProductSchema.parse(body)
+    const validationResult = createProductSchema.safeParse(body)
+    if (!validationResult.success) {
+      console.log('Validation failed:', validationResult.error.issues)
+      return NextResponse.json(
+        { 
+          error: 'Invalid request data', 
+          details: validationResult.error.issues 
+        },
+        { status: 400 }
+      )
+    }
+
+    const validatedData = validationResult.data
 
     // Validate Stripe price if provided
     if (validatedData.stripe_price_id) {
@@ -158,13 +170,13 @@ export async function POST(request: NextRequest) {
     const insertData = {
       quiz_id: validatedData.quiz_id,
       name: validatedData.name,
-      description: validatedData.description,
+      description: validatedData.description || null,
       price: validatedData.price,
       currency: validatedData.currency,
       active: validatedData.active,
       stripe_product_id: validatedData.stripe_product_id || null,
       stripe_price_id: validatedData.stripe_price_id || null,
-      booking_url: validatedData.booking_url || null,
+      booking_url: (validatedData.booking_url && validatedData.booking_url !== '') ? validatedData.booking_url : null,
       metadata: validatedData.metadata || {}
     }
     

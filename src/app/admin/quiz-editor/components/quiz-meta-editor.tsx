@@ -236,7 +236,24 @@ export default function QuizMetaEditor({ quizData, onDataChange }: QuizMetaEdito
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                AI eredmény engedélyezve
+                Eredmény elemzés típusa
+              </label>
+              <select
+                value={localData.feature_flags?.result_analysis_type || 'both'}
+                onChange={(e) => handleFeatureFlagChange('result_analysis_type', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="score">Csak pont alapú</option>
+                <option value="ai">Csak AI alapú</option>
+                <option value="both">Mindkét elemzés</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Milyen típusú eredmény elemzés jelenjen meg a result oldalon
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                AI eredmény engedélyezve (deprecated)
               </label>
               <select
                 value={localData.feature_flags?.ai_result_enabled ? 'true' : 'false'}
@@ -246,6 +263,9 @@ export default function QuizMetaEditor({ quizData, onDataChange }: QuizMetaEdito
                 <option value="true">Igen</option>
                 <option value="false">Nem</option>
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                ⚠️ Deprecated: Használd az "Eredmény elemzés típusa" beállítást
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -109,33 +109,57 @@ export default function ProductsEditor({ quizData, onDataChange }: ProductsEdito
 
     try {
       setSaving(true)
+      
+      // Prepare clean data for API
+      const productData = {
+        quiz_id: quizData.id,
+        name: formData.translations.hu.name.trim(),
+        description: formData.translations.hu.description?.trim() || null,
+        price: formData.price,
+        currency: formData.currency,
+        active: formData.active,
+        stripe_product_id: formData.stripe_product_id?.trim() || null,
+        stripe_price_id: formData.stripe_price_id?.trim() || null,
+        booking_url: formData.asset_url?.trim() || null,
+        metadata: {
+          delivery_type: formData.delivery_type,
+          translations: {
+            hu: {
+              name: formData.translations.hu.name.trim(),
+              description: formData.translations.hu.description?.trim() || null
+            },
+            en: {
+              name: formData.translations.en.name?.trim() || null,
+              description: formData.translations.en.description?.trim() || null
+            }
+          }
+        }
+      }
+      
+      console.log('Creating product with data:', productData)
+      
       const response = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quiz_id: quizData.id,
-          name: formData.translations.hu.name,
-          description: formData.translations.hu.description,
-          price: formData.price,
-          currency: formData.currency,
-          active: formData.active,
-          stripe_product_id: formData.stripe_product_id,
-          stripe_price_id: formData.stripe_price_id,
-          booking_url: formData.asset_url // Using asset_url as booking_url for compatibility
-        })
+        body: JSON.stringify(productData)
       })
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('Product creation failed:', errorData)
         throw new Error(errorData.error || 'Failed to create product')
       }
 
       const newProduct = await response.json()
+      console.log('Product created successfully:', newProduct)
+      
       const updatedProducts = [newProduct, ...products]
       setProducts(updatedProducts)
       onDataChange('products', updatedProducts)
       resetForm()
       setIsCreateDialogOpen(false)
+      setError('')
+      
     } catch (err) {
       console.error('Create product error:', err)
       setError(err instanceof Error ? err.message : 'Failed to create product')
