@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
+import { emailTrigger } from '@/lib/email-automation'
 
 // Get admin Supabase client for webhook operations
 const supabaseAdmin = getSupabaseAdmin()
@@ -126,7 +127,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     console.log('Order created successfully via RPC:', order)
     
-    // Trigger Day-0 email fulfillment
+    // Get session data for email triggering
+    const { data: quizSession } = await supabaseAdmin
+      .from('quiz_sessions')
+      .select('user_email, user_name')
+      .eq('id', session_id)
+      .single()
+    
+    // Trigger immediate purchase confirmation email
+    try {
+      await emailTrigger.triggerPurchaseConfirmation(
+        quiz_id,
+        quizSession?.user_email || '',
+        product?.product_id || product?.id || '',
+        order.id,
+        quizSession?.user_name || undefined
+      )
+    } catch (emailError) {
+      console.error('Purchase email trigger failed:', emailError)
+      // Don't fail the order creation if email fails
+    }
+
+    // Existing email fulfillment logic (if needed for compatibility)
     await triggerEmailFulfillment(order.id, quiz_id, session_id, lang)
     return order
 

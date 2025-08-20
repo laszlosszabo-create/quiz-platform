@@ -169,13 +169,18 @@ async function processTemplate(template: any, variables: any, supabase: any) {
   let subject = template.subject_template
   let htmlContent = template.body_html || template.body_markdown
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://quizapp.hu'
+  
   // Replace standard variables
   const allVariables = {
     user_name: variables.user_name || 'Értékes Ügyfél',
     user_email: variables.user_email || '',
-    quiz_title: variables.quiz_title || '',
-    quiz_result_percentage: variables.quiz_result_percentage || '0',
-    quiz_result_text: variables.quiz_result_text || '',
+    quiz_title: variables.quiz_title || 'ADHD Gyorsteszt',
+    percentage: variables.percentage || variables.quiz_result_percentage || '75',
+    score: variables.score || '15',
+    category: variables.category || variables.quiz_result_text || 'Magasabb Szintű',
+    quiz_result_percentage: variables.quiz_result_percentage || variables.percentage || '75',
+    quiz_result_text: variables.quiz_result_text || variables.category || 'Magasabb Szintű',
     quiz_completion_date: variables.quiz_completion_date || new Date().toLocaleDateString('hu-HU'),
     product_name: variables.product_name || '',
     product_price: variables.product_price || '',
@@ -188,6 +193,10 @@ async function processTemplate(template: any, variables: any, supabase: any) {
     support_email: process.env.SUPPORT_EMAIL || 'support@quizapp.hu',
     company_name: 'Quiz Platform',
     unsubscribe_url: variables.unsubscribe_url || '#',
+    // URL variables
+    result_url: variables.result_url || `${baseUrl}/results`,
+    booking_url: variables.booking_url || `${baseUrl}/booking`,
+    download_url: variables.download_url || `${baseUrl}/downloads`,
     ...variables
   }
 
@@ -239,7 +248,7 @@ async function processEmailQueue(queueItemId: string) {
     // Update status to processing
     await supabase
       .from('email_queue')
-      .update({ status: 'processing', updated_at: new Date().toISOString() })
+      .update({ status: 'processing' })
       .eq('id', queueItemId)
 
     // Send email via Resend
@@ -256,13 +265,13 @@ async function processEmailQueue(queueItemId: string) {
     })
 
     // Update queue item status to sent
-    await supabase
+  await supabase
       .from('email_queue')
       .update({ 
         status: 'sent',
         sent_at: new Date().toISOString(),
         external_id: result.data?.id,
-        updated_at: new Date().toISOString()
+        
       })
       .eq('id', queueItemId)
 
@@ -285,12 +294,12 @@ async function processEmailQueue(queueItemId: string) {
     console.error('Email processing error:', error)
 
     // Update queue item status to failed
-    await supabase
+  await supabase
       .from('email_queue')
       .update({ 
         status: 'failed',
         error_message: error instanceof Error ? error.message : 'Unknown error',
-        updated_at: new Date().toISOString()
+        
       })
       .eq('id', queueItemId)
 

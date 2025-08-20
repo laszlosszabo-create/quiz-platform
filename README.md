@@ -2,6 +2,10 @@
 
 A **Next.js alapú, Supabase hátterű** quiz rendszer, amely teljesen konfigurációvezérelt, többnyelvű tartalomkezelést tesz lehetővé.
 
+> Napi összefoglaló (2025-08-20)
+> - Email automatizmus stabilizálva: hiányzó címzett esetén türelmi idő + backfill, szabály lekérdezés legacy/new sémához igazítva, automatizmus email nélkül is triggerel.
+> - Részletek: lásd docs/DEVELOPMENT_REPORT_20250820.md és az Email Integrációs Útmutató: docs/EMAIL_INTEGRATION_GUIDE.md
+
 ## 🎯 Főbb funkciók
 
 - **Teljesen konfigurációvezérelt**: minden tartalom admin felületről szerkeszthető
@@ -171,6 +175,8 @@ Minden modul részletes dokumentációja a `docs/` könyvtárban található.
 - **[MODULE6_PROGRESS.md](MODULE6_PROGRESS.md)** - Module 6 fejlesztési állapot
 - **[BRIEF.md](BRIEF.md)** - Projekt specifikáció és követelmények
 - **[DATABASE_SETUP.md](DATABASE_SETUP.md)** - Adatbázis telepítési útmutató
+- **[DEVELOPMENT_REPORT_20250820.md](docs/DEVELOPMENT_REPORT_20250820.md)** - Napi riport (2025-08-20)
+- **[EMAIL_INTEGRATION_GUIDE.md](docs/EMAIL_INTEGRATION_GUIDE.md)** - Email rendszer és integráció új oldalakba
 
 ### Hasznos Parancsok
 ```bash

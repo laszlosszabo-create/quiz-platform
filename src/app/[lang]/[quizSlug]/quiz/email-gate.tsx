@@ -56,7 +56,7 @@ export function EmailGate({
     setError('')
 
     try {
-      const response = await fetch('/api/quiz/lead', {
+    const response = await fetch('/api/quiz/lead', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,6 +64,7 @@ export function EmailGate({
         body: JSON.stringify({
           quizSlug: quiz.slug,
           email: email.trim(),
+      name: name.trim(),
           lang,
           session_id: sessionId,
         }),

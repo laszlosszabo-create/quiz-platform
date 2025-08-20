@@ -41,13 +41,14 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin()
 
-    // Get email queue items with related data
+    // Get email queue items; filter by quiz via template relation because email_queue may not have quiz_id
     let query = supabase
       .from('email_queue')
       .select(`
         *,
         email_templates (
           id,
+          quiz_id,
           template_name,
           template_type,
           subject_template
@@ -55,16 +56,16 @@ export async function GET(request: NextRequest) {
         email_automation_rules (
           id,
           rule_name,
-          trigger_event
+          rule_type
         )
       `)
-      .eq('quiz_id', validatedData.quiz_id)
 
     if (validatedData.status) {
       query = query.eq('status', validatedData.status)
     }
 
-    const { data: queueItems, error } = await query
+    // Execute query
+    const { data: queueItemsRaw, error } = await query
       .order('scheduled_at', { ascending: true })
       .range(validatedData.offset, validatedData.offset + validatedData.limit - 1)
 
@@ -76,23 +77,20 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get total count for pagination
-    const { count, error: countError } = await supabase
-      .from('email_queue')
-      .select('*', { count: 'exact', head: true })
-      .eq('quiz_id', validatedData.quiz_id)
+    // Filter by quiz_id on the application side (based on joined template)
+    const queueItems = (queueItemsRaw || []).filter((item: any) => item.email_templates?.quiz_id === validatedData.quiz_id)
 
-    if (countError) {
-      console.error('Count error:', countError)
-    }
+    // Count total by re-querying head count and then filtering is not possible; compute from unpaginated count would be expensive.
+    // For now, approximate total as filtered length within the current page window.
+    const total = queueItems.length + (validatedData.offset || 0)
 
     return NextResponse.json({ 
       queueItems,
       pagination: {
-        total: count || 0,
+        total,
         limit: validatedData.limit,
         offset: validatedData.offset,
-        hasMore: (count || 0) > validatedData.offset + validatedData.limit
+        hasMore: queueItemsRaw ? queueItemsRaw.length === validatedData.limit : false
       }
     })
 
@@ -121,8 +119,7 @@ export async function PUT(request: NextRequest) {
     const supabase = getSupabaseAdmin()
 
     const updateData: any = {
-      status: validatedData.status,
-      updated_at: new Date().toISOString()
+      status: validatedData.status
     }
 
     if (validatedData.error_message) {
@@ -133,7 +130,7 @@ export async function PUT(request: NextRequest) {
       updateData.sent_at = validatedData.sent_at
     }
 
-    const { data, error } = await supabase
+  const { data, error } = await supabase
       .from('email_queue')
       .update(updateData)
       .eq('id', validatedData.id)
@@ -148,7 +145,7 @@ export async function PUT(request: NextRequest) {
         email_automation_rules (
           id,
           rule_name,
-          trigger_event
+          rule_type
         )
       `)
       .single()
@@ -195,11 +192,10 @@ export async function DELETE(request: NextRequest) {
     const supabase = getSupabaseAdmin()
 
     // Only allow canceling pending items
-    const { data, error } = await supabase
+  const { data, error } = await supabase
       .from('email_queue')
       .update({ 
-        status: 'cancelled',
-        updated_at: new Date().toISOString()
+    status: 'cancelled'
       })
       .eq('id', queueItemId)
       .eq('status', 'pending')

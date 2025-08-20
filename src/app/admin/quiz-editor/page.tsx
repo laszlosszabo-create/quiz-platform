@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import EmailTemplatesEditor from './components/email-templates-editor'
 import AdminAuthWrapper from '@/app/admin/components/admin-auth-wrapper'
 
 // Import all editor components based on documentation
@@ -12,11 +11,10 @@ import AdvancedTranslationEditor from './components/advanced-translation-editor'
 import QuestionsEditor from './components/questions-editor'
 import ScoringRulesEditor from './components/scoring-rules-editor'
 import AIPromptsEditor from './components/ai-prompts-editor'
-// TODO: Create remaining components
-// import ProductsEditor from './components/products-editor'
 import ProductsEditor from './components/products-editor'
 import ProductConfigsEditor from './components/product-configs-editor'
-// import EmailTemplatesEditor from './components/email-templates-editor'
+import EmailsTab from './components/emails-tab'
+// TODO: Create remaining components
 // import AuditLogViewer from './components/audit-log-viewer'
 
 interface QuizData {
@@ -228,7 +226,7 @@ function QuizEditorContent() {
         )
       case 'emails':
         return (
-          <EmailTemplatesEditor
+          <EmailsTab
             quizId={quizData?.id || ''}
             products={quizData?.products || []}
           />

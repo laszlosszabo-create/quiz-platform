@@ -11,19 +11,16 @@ const getRulesSchema = z.object({
 const createRuleSchema = z.object({
   quiz_id: z.string().uuid(),
   product_id: z.string().optional(),
-  // Optional on create; we'll auto-generate if missing
-  rule_name: z.string().min(1).optional(),
-  rule_type: z.enum(['quiz_complete', 'purchase', 'no_purchase_reminder']).default('quiz_complete'),
-  trigger_conditions: z.record(z.any()).catch({}).default({}),
-  delay_minutes: z.coerce.number().min(0).default(0),
+  rule_name: z.string().min(1),
+  rule_type: z.enum(['quiz_complete', 'purchase', 'no_purchase_reminder']),
+  trigger_conditions: z.record(z.any()).default({}),
+  delay_minutes: z.number().min(0).default(0),
   email_template_id: z.string().uuid(),
   is_active: z.boolean().default(true)
 })
 
 const updateRuleSchema = createRuleSchema.extend({
-  id: z.string().uuid(),
-  // For update we require a non-empty name
-  rule_name: z.string().min(1)
+  id: z.string().uuid()
 })
 
 export async function GET(request: NextRequest) {
@@ -97,7 +94,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-  const validatedData = createRuleSchema.parse(body)
+    const validatedData = createRuleSchema.parse(body)
 
     const supabase = getSupabaseAdmin()
 
@@ -105,7 +102,7 @@ export async function POST(request: NextRequest) {
     const { data: template, error: templateError } = await supabase
       .from('email_templates')
       .select('id, quiz_id, product_id')
-      .eq('id', validatedData.email_template_id)
+      .eq('id', validatedData.template_id)
       .single()
 
     if (templateError || !template) {
@@ -122,25 +119,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const autoName = ((): string => {
-      const delay = validatedData.delay_minutes || 0
-      const humanDelay = delay === 0 ? 'azonnal' : `${delay} perc`
-      const eventName = ({
-        quiz_complete: 'Quiz befejezése',
-        purchase: 'Vásárlás',
-        no_purchase_reminder: 'Emlékeztető'
-      } as const)[validatedData.rule_type]
-      return `Szabály – ${eventName} – ${humanDelay}`
-    })()
-
-    const finalRuleName = (validatedData.rule_name || '').trim() || autoName
-
     const { data, error } = await supabase
       .from('email_automation_rules')
       .insert({
         quiz_id: validatedData.quiz_id,
         product_id: validatedData.product_id,
-        rule_name: finalRuleName,
+        rule_name: validatedData.rule_name,
         rule_type: validatedData.rule_type,
         trigger_conditions: validatedData.trigger_conditions,
         delay_minutes: validatedData.delay_minutes,
@@ -197,7 +181,7 @@ export async function PUT(request: NextRequest) {
     const { data: template, error: templateError } = await supabase
       .from('email_templates')
       .select('id, quiz_id, product_id')
-      .eq('id', validatedData.email_template_id)
+      .eq('id', validatedData.template_id)
       .single()
 
     if (templateError || !template) {
@@ -218,11 +202,12 @@ export async function PUT(request: NextRequest) {
       .from('email_automation_rules')
       .update({
         rule_name: validatedData.rule_name,
-        rule_type: validatedData.rule_type,
-        trigger_conditions: validatedData.trigger_conditions,
+        trigger_event: validatedData.trigger_event,
+        conditions: validatedData.conditions,
         delay_minutes: validatedData.delay_minutes,
-        email_template_id: validatedData.email_template_id,
+        template_id: validatedData.template_id,
         is_active: validatedData.is_active,
+        max_sends: validatedData.max_sends,
         updated_at: new Date().toISOString()
       })
       .eq('id', validatedData.id)

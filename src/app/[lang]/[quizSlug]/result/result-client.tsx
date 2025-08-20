@@ -91,7 +91,12 @@ export function ResultClient({
         generateAIResult()
       } else {
         setAiResult(snapshot.ai_result)
+        // If AI result is already cached, we still need to trigger email automation
+        triggerEmailAutomation()
       }
+    } else {
+      // If using score-only mode, we still need to trigger email automation
+      triggerEmailAutomation()
     }
   }, [])
 
@@ -228,6 +233,42 @@ export function ResultClient({
       setAiNotice('Az AI eredmény generálása nem érhető el. A statikus eredmény kerül megjelenítésre.')
     } finally {
       setIsLoadingAI(false)
+    }
+  }
+
+  const triggerEmailAutomation = async () => {
+    try {
+      // Check if email automation was already triggered for this session
+      const snapshot = session.result_snapshot as any
+      if (snapshot?.email_triggered) {
+        return
+      }
+
+      // Call the AI endpoint to trigger email automation, even without AI generation
+      const response = await fetch('/api/ai/generate-result', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: session.id,
+          quiz_id: quiz.id,
+          lang,
+          skip_ai_generation: true, // Flag to skip AI but trigger email
+        }),
+      })
+
+      if (response.ok) {
+        // Mark that email automation was triggered
+        const currentSnapshot = session.result_snapshot as Record<string, any> || {}
+        session.result_snapshot = {
+          ...currentSnapshot,
+          email_triggered: true,
+          triggered_at: new Date().toISOString()
+        } as any
+      }
+    } catch (error) {
+      console.error('Failed to trigger email automation:', error)
     }
   }
 

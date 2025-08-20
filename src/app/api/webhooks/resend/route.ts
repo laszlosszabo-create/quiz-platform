@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
       // Still log the event even if we can't find the queue item
     }
 
-    // Log analytics event
+    // Idempotency: prevent duplicate analytics by external event id
+    // If your table has a unique constraint on (external_id, event_type), this will naturally dedupe.
     const analyticsData = {
       quiz_id: queueItem?.quiz_id || null,
       template_id: queueItem?.template_id || null,
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Try insert, ignore duplicates
     const { error: analyticsError } = await supabase
       .from('email_analytics')
       .insert(analyticsData)
@@ -68,27 +70,33 @@ export async function POST(request: NextRequest) {
       console.error('Analytics insertion error:', analyticsError)
     }
 
-    // Update queue item if it exists and event is delivery confirmation
+    // Update queue item by event types
     if (queueItem && eventType === 'delivered') {
-      await supabase
+    await supabase
         .from('email_queue')
         .update({
-          status: 'sent', // Confirm delivery
-          updated_at: new Date().toISOString()
+      status: 'sent' // Confirm delivery
         })
         .eq('id', queueItem.id)
     }
 
-    // Handle bounces and failures
     if (queueItem && (eventType === 'bounced' || eventType === 'failed')) {
-      await supabase
+      // Classify reason
+      const reason: string = data.reason || `Email ${eventType}`
+    await supabase
         .from('email_queue')
         .update({
           status: 'failed',
-          error_message: data.reason || `Email ${eventType}`,
-          updated_at: new Date().toISOString()
+      error_message: reason
         })
         .eq('id', queueItem.id)
+
+      // Log failure analytics best-effort
+      try {
+        await supabase
+          .from('email_analytics')
+          .insert({ email_queue_id: queueItem.id, event_type: 'failed', event_data: { reason } })
+      } catch {}
     }
 
     return NextResponse.json({ success: true })

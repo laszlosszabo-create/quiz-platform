@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+  "dev:email-cron": "node scripts/dev-email-cron.js",
+  "dev:email-cron:fast": "EMAIL_CRON_INTERVAL_MS=15000 node scripts/dev-email-cron.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
