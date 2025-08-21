@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
+import { markdownToHtml } from '@/lib/markdown'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'No pending emails', processed: 0, backfill, started_at: startedAt, finished_at: new Date().toISOString() })
     }
 
-    const results: ProcessResult = { processed: 0, succeeded: 0, failed: 0, skipped: 0, errors: [], logs: [] }
+  const results: ProcessResult = { processed: 0, succeeded: 0, failed: 0, skipped: 0, errors: [], logs: [] }
 
     for (const item of queueItems) {
       // Guard: missing recipient => cancel
@@ -108,9 +109,61 @@ export async function GET(request: NextRequest) {
         continue
       }
 
+      // Prepare variables with late enrichment if needed (product emails)
+      let variables = { ...(item.variables_used || {}) } as Record<string, any>
+      try {
+        // Fill product_name if missing
+        if (!variables.product_name && variables.product_id) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('name')
+            .eq('id', variables.product_id)
+            .maybeSingle()
+          if (product?.name) variables.product_name = product.name
+        }
+
+        // Fill ai_result from session cache or product_ai_results table if missing and we have context
+        if (!variables.ai_result && variables.session_id && variables.product_id) {
+          let ai: string | undefined
+          try {
+            const { data: sessionRow } = await supabase
+              .from('quiz_sessions')
+              .select('product_ai_results')
+              .eq('id', variables.session_id)
+              .maybeSingle()
+            ai = (sessionRow?.product_ai_results as any)?.[variables.product_id]?.ai_result
+          } catch {}
+
+          if (!ai) {
+            const { data: tableRow } = await supabase
+              .from('product_ai_results')
+              .select('ai_result')
+              .eq('session_id', variables.session_id)
+              .eq('product_id', variables.product_id)
+              .eq('lang', variables.lang || 'hu')
+              .maybeSingle()
+            ai = (tableRow as any)?.ai_result
+          }
+
+          if (ai) {
+            variables.ai_result = markdownToHtml(String(ai))
+          } else {
+            // AI not ready yet: reschedule a short delay and retry later
+            const nextAt = new Date(Date.now() + 2 * 60 * 1000) // +2 minutes
+            await supabase.from('email_queue').update({ status: 'pending', scheduled_at: nextAt.toISOString(), error_message: 'ai_not_ready' }).eq('id', item.id)
+            results.skipped++
+            results.logs.push({ queue_id: item.id, recipient_email: item.recipient_email, template_id: item.template_id, status: 'skipped', reason: 'ai_not_ready' })
+            continue
+          }
+        }
+      } catch (e) {
+        // If enrichment fails, proceed; validation may still catch missing vars
+        console.warn('Late enrichment failed:', e)
+      }
+
       // Validate template variables before send
       const template = item.email_templates
-      const { subject, htmlContent, missing } = processTemplateWithValidation(template, item.variables_used || {})
+      const { subject, htmlContent, missing } = processTemplateWithValidation(template, variables)
       if (missing.length > 0) {
         await supabase.from('email_queue').update({ status: 'failed', error_message: `VALIDATION_ERROR missing: ${missing.join(',')}` }).eq('id', item.id)
         results.failed++

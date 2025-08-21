@@ -238,34 +238,33 @@ export function ResultClient({
 
   const triggerEmailAutomation = async () => {
     try {
-      // Check if email automation was already triggered for this session
       const snapshot = session.result_snapshot as any
-      if (snapshot?.email_triggered) {
+      if (snapshot?.email_triggered) return
+
+      // Respect analysis type: if AI is required, don't send early score-only email.
+      const analysisType = featureFlags.result_analysis_type || 'both'
+      const aiRequired = analysisType === 'ai' || analysisType === 'both'
+
+      if (aiRequired && !snapshot?.ai_result) {
+        // Wait for AI generation path to trigger the email after result is ready
         return
       }
 
-      // Call the AI endpoint to trigger email automation, even without AI generation
+      // If AI already cached OR analysis type is 'score', send immediately (score-only or cached AI)
       const response = await fetch('/api/ai/generate-result', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: session.id,
           quiz_id: quiz.id,
           lang,
-          skip_ai_generation: true, // Flag to skip AI but trigger email
+          skip_ai_generation: true,
         }),
       })
 
       if (response.ok) {
-        // Mark that email automation was triggered
         const currentSnapshot = session.result_snapshot as Record<string, any> || {}
-        session.result_snapshot = {
-          ...currentSnapshot,
-          email_triggered: true,
-          triggered_at: new Date().toISOString()
-        } as any
+        session.result_snapshot = { ...currentSnapshot, email_triggered: true, triggered_at: new Date().toISOString() } as any
       }
     } catch (error) {
       console.error('Failed to trigger email automation:', error)

@@ -87,6 +87,7 @@ export interface Session extends BaseEntity {
   answers?: Json
   scores?: Json
   result_snapshot?: Json
+  product_ai_results?: Json
   client_token?: string
 }
 

@@ -70,7 +70,8 @@ export default function ProductConfigsEditor({ quizId, products }: ProductConfig
     ai_prompts: {
       system_prompt: 'Te egy szakértő vagy, aki segít elemezni a quiz eredményeket.',
       user_prompt: 'Elemezd az eredményeket és adj személyre szabott tanácsokat.',
-      result_prompt: ''
+      result_prompt: '',
+      max_tokens: 1000
     }
   }
 
@@ -505,7 +506,7 @@ export default function ProductConfigsEditor({ quizId, products }: ProductConfig
                 <div><code className="bg-white px-1 rounded">{'{{quiz_title}}'}</code> - Quiz címe</div>
               </div>
               <p className="text-gray-500 italic mt-2">
-                🚀 Példa: "Szia {'{{name}}'}, a kvíz kérdéseire adott válaszaid alapján {'{{questions_and_answers}}'} az eredményed {'{{score}}'} pont..."
+                🚀 Példa: &quot;Szia {'{{name}}'}, a kvíz kérdéseire adott válaszaid alapján {'{{questions_and_answers}}'} az eredményed {'{{score}}'} pont...&quot;
               </p>
               <div className="mt-3 p-2 bg-blue-50 border-l-4 border-blue-200 text-xs">
                 <p className="font-semibold text-blue-800 mb-1">📋 Kérdés változók részletesen:</p>
@@ -528,7 +529,23 @@ export default function ProductConfigsEditor({ quizId, products }: ProductConfig
               className="font-mono text-sm"
             />
             <p className="text-xs text-gray-500 mt-1">
-              🗣️ Amit a "felhasználó" mond az AI-nak (opcionális)
+              🗣️ Amit a &quot;felhasználó&quot; mond az AI-nak (opcionális)
+            </p>
+          </div>
+
+          <div>
+            <Label>🔢 Maximum Token Limit</Label>
+            <Input
+              type="number"
+              value={aiPrompts.max_tokens || 1000}
+              onChange={(e) => setAiPrompts({...aiPrompts, max_tokens: parseInt(e.target.value) || 1000})}
+              placeholder="1000"
+              min={100}
+              max={4000}
+              className="font-mono"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              📏 Az AI válasz maximum hossza tokenekben (100-4000). Ajánlott: 1000-2000
             </p>
           </div>
 

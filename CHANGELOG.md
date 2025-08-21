@@ -65,6 +65,14 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) alapján 
 ### 🎯 In Progress
 - Module 6: Products Editor - Advanced admin tools
 
+### 🐛 Fixed - 2025-08-21
+- Quiz AI timeout → 500 helyett 200-as score-only fallback + e-mail trigger (jobb UX)
+- Modellhasználat egységesítése env alapon: `OPENAI_CHAT_MODEL` (alap: gpt-4.1-mini)
+- Dev szerver log-zaj csökkentés: `/.well-known/appspecific/com.chrome.devtools.json` → 204
+
+### 📚 Docs
+- `docs/AI_TIMEOUT_FALLBACK_20250821.md` – részletek a fallbackról, konfigokról és tesztelésről
+
 ## [0.6.4] - 2025-08-15
 
 **Commit Hash**: `72f072d` ✅  

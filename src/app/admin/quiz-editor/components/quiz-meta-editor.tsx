@@ -264,7 +264,7 @@ export default function QuizMetaEditor({ quizData, onDataChange }: QuizMetaEdito
                 <option value="false">Nem</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                ⚠️ Deprecated: Használd az "Eredmény elemzés típusa" beállítást
+                ⚠️ Deprecated: Használd az &quot;Eredmény elemzés típusa&quot; beállítást
               </p>
             </div>
             <div>

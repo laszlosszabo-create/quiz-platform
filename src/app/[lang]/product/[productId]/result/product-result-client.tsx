@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { getTranslations } from '@/lib/translations'
 import { tracker } from '@/lib/tracking'
+import { markdownToHtml } from '@/lib/markdown'
 import { Calendar, CheckCircle, Download, Star, Clock, Gift } from 'lucide-react'
 
 interface ProductResultClientProps {
@@ -99,13 +100,14 @@ export function ProductResultClient({
     const analysisType = featureFlags.result_analysis_type || 'both' // 'score', 'ai', or 'both'
     
     if (analysisType === 'ai' || analysisType === 'both') {
-      const snapshot = session.result_snapshot as any
-      const hasAiResult = snapshot?.ai_result
+      // For product results, check product-specific AI results
+      const productAiResults = session.product_ai_results as any || {}
+      const hasProductAiResult = productAiResults[product.id]?.ai_result
       
-      if (!hasAiResult) {
+      if (!hasProductAiResult) {
         generateAIResult()
       } else {
-        setAiResult(snapshot.ai_result)
+        setAiResult(productAiResults[product.id].ai_result)
       }
     }
   }, [])
@@ -168,7 +170,7 @@ export function ProductResultClient({
     setIsLoadingAI(true)
     
     try {
-      const response = await fetch('/api/ai/generate-result', {
+      const doPost = () => fetch('/api/ai/generate-result', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,9 +178,16 @@ export function ProductResultClient({
         body: JSON.stringify({
           session_id: session.id,
           quiz_id: quiz.id,
+          product_id: product.id,
+          result_type: 'product',
           lang,
         }),
       })
+      let response = await doPost()
+      if (!response.ok && response.status >= 500) {
+        await new Promise(r => setTimeout(r, 600))
+        response = await doPost()
+      }
 
       if (response.ok) {
         const { ai_result, cached } = await response.json()
@@ -186,11 +195,13 @@ export function ProductResultClient({
         
         // Update local session state to prevent re-generation
         if (!cached) {
-          const currentSnapshot = session.result_snapshot as Record<string, any> || {}
-          session.result_snapshot = {
-            ...currentSnapshot,
-            ai_result,
-            generated_at: new Date().toISOString()
+          const currentProductResults = session.product_ai_results as Record<string, any> || {}
+          session.product_ai_results = {
+            ...currentProductResults,
+            [product.id]: {
+              ai_result,
+              generated_at: new Date().toISOString()
+            }
           } as any
         }
       } else {
@@ -419,7 +430,7 @@ export function ProductResultClient({
                 ) : aiResult ? (
                   <div 
                     className="prose prose-lg max-w-none text-gray-700 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: aiResult }}
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(aiResult) }}
                   />
                 ) : aiNotice ? (
                   <div className="text-center py-8">

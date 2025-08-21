@@ -136,13 +136,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     
     // Trigger immediate purchase confirmation email
     try {
-      await emailTrigger.triggerPurchaseConfirmation(
+      // Pass session_id via metadata so downstream can enrich AI result
+      await emailTrigger.triggerEmails({
+        type: 'purchase',
         quiz_id,
-        quizSession?.user_email || '',
-        product?.product_id || product?.id || '',
-        order.id,
-        quizSession?.user_name || undefined
-      )
+        user_email: quizSession?.user_email || '',
+        user_name: quizSession?.user_name || undefined,
+        product_id: product?.product_id || product?.id || '',
+        order_id: order.id,
+        metadata: { session_id }
+      })
     } catch (emailError) {
       console.error('Purchase email trigger failed:', emailError)
       // Don't fail the order creation if email fails

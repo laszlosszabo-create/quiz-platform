@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-  "dev:email-cron": "node scripts/dev-email-cron.js",
-  "dev:email-cron:fast": "EMAIL_CRON_INTERVAL_MS=15000 node scripts/dev-email-cron.js",
+    "dev:email-cron": "node scripts/dev-email-cron.js",
+    "dev:email-cron:fast": "EMAIL_CRON_INTERVAL_MS=15000 node scripts/dev-email-cron.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -33,6 +33,7 @@
     "@supabase/supabase-js": "^2.45.4",
     "@types/dompurify": "^3.0.5",
     "@types/jsdom": "^21.1.7",
+    "@types/marked": "^5.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.2.6",

@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '@/lib/supabase-config'
+import { markdownToHtml } from '@/lib/markdown'
 
 export interface EmailTriggerEvent {
   type: 'quiz_complete' | 'purchase' | 'no_purchase_reminder'
@@ -205,12 +206,65 @@ export class EmailAutomationTrigger {
       scheduledAt.setMinutes(scheduledAt.getMinutes() + 5) // +5 minutes buffer
     }
 
+    // Enrich variables for product purchase: product name and AI result from session cache
+    let productName: string | undefined
+    let productAiHtml: string | undefined
+    try {
+      if (event.type === 'purchase' && event.product_id) {
+        // Fetch product name
+        const { data: product } = await this.supabase
+          .from('products')
+          .select('name')
+          .eq('id', event.product_id)
+          .maybeSingle()
+        productName = (product as any)?.name
+
+        // If session present, try to extract product AI from session cache; else from SQL table
+        const sid = event.metadata?.session_id
+        if (sid) {
+          const { data: sessionRow } = await this.supabase
+            .from('quiz_sessions')
+            .select('product_ai_results')
+            .eq('id', sid)
+            .maybeSingle()
+          const ai = (sessionRow?.product_ai_results as any)?.[event.product_id]?.ai_result
+          if (ai) {
+            productAiHtml = markdownToHtml(String(ai))
+          } else {
+            const { data: row } = await this.supabase
+              .from('product_ai_results')
+              .select('ai_result')
+              .eq('session_id', sid)
+              .eq('product_id', event.product_id)
+              .eq('lang', (event as any).lang || 'hu')
+              .maybeSingle()
+            const tableAi = (row as any)?.ai_result
+            if (tableAi) productAiHtml = markdownToHtml(String(tableAi))
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Purchase enrichment failed:', e)
+    }
+
     // Prepare email variables
     console.log('Before prepareVariables - event:', JSON.stringify({ ...event, user_email: enrichedEmail || event.user_email, user_name: enrichedName || event.user_name }, null, 2))
-  const variables = this.prepareVariables({ ...event, user_email: enrichedEmail || event.user_email, user_name: enrichedName || event.user_name }, rule)
+    const baseVars = this.prepareVariables({ ...event, user_email: enrichedEmail || event.user_email, user_name: enrichedName || event.user_name }, rule)
+    const variables = {
+      ...baseVars,
+      ...(productName ? { product_name: productName } : {}),
+      ...(productAiHtml ? { ai_result: productAiHtml } : {}),
+    }
     console.log('After prepareVariables - variables:', variables)
 
   // Queue the email (only include columns guaranteed by current schema)
+  // Render template body: prefer HTML template; fallback to markdown converted to HTML
+  const rawBodyTemplate = rule.email_templates.body_html || rule.email_templates.body_markdown || ''
+  const renderedBody = this.processTemplate(rawBodyTemplate, variables)
+  const bodyHtmlFinal = rule.email_templates.body_html
+    ? renderedBody
+    : markdownToHtml(renderedBody)
+
   const { error: queueError } = await this.supabase
       .from('email_queue')
       .insert({
@@ -220,7 +274,7 @@ export class EmailAutomationTrigger {
     recipient_email: enrichedEmail || event.user_email,
     recipient_name: enrichedName || event.user_name,
         subject: this.processTemplate(rule.email_templates.subject_template, variables),
-        body_html: this.processTemplate(rule.email_templates.body_html || rule.email_templates.body_markdown, variables),
+        body_html: bodyHtmlFinal,
         body_markdown: rule.email_templates.body_markdown,
         variables_used: variables,
         scheduled_at: scheduledAt.toISOString(),
@@ -233,6 +287,19 @@ export class EmailAutomationTrigger {
     }
 
     console.log(`Email queued for rule ${rule.id}, scheduled for ${scheduledAt.toISOString()}`)
+
+    // Optional: in development mode, trigger immediate processing to avoid relying on external cron
+    try {
+      const isDev = process.env.NODE_ENV !== 'production'
+      const autoProcess = process.env.EMAIL_AUTOPROCESS === '1' || process.env.EMAIL_AUTOPROCESS === 'true'
+      if (isDev || autoProcess) {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        // Fire-and-forget; ignore response
+        fetch(`${baseUrl}/api/cron/process-email-queue?safe=true&backfill=true&retry=true&rate=5`).catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Email auto-process trigger failed:', e)
+    }
   }
 
   private evaluateConditions(conditions: Record<string, any>, event: EmailTriggerEvent): boolean {

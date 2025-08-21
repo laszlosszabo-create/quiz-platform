@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
-import { CTAButton } from '@/components/landing/ctabutton'
-import StickyCTA from '@/components/landing/stickycta'
+import { CTAButton } from '@/components/landing/CTAButton'
+import StickyCTA from '@/components/landing/StickyCTA'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
 import { getTranslation } from '@/lib/translations'
 

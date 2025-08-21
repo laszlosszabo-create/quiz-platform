@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const { data: template, error: templateError } = await supabase
       .from('email_templates')
       .select('id, quiz_id, product_id')
-      .eq('id', validatedData.template_id)
+  .eq('id', validatedData.email_template_id)
       .single()
 
     if (templateError || !template) {
@@ -181,7 +181,7 @@ export async function PUT(request: NextRequest) {
     const { data: template, error: templateError } = await supabase
       .from('email_templates')
       .select('id, quiz_id, product_id')
-      .eq('id', validatedData.template_id)
+  .eq('id', validatedData.email_template_id)
       .single()
 
     if (templateError || !template) {
@@ -202,12 +202,10 @@ export async function PUT(request: NextRequest) {
       .from('email_automation_rules')
       .update({
         rule_name: validatedData.rule_name,
-        trigger_event: validatedData.trigger_event,
-        conditions: validatedData.conditions,
+  trigger_conditions: validatedData.trigger_conditions,
         delay_minutes: validatedData.delay_minutes,
-        template_id: validatedData.template_id,
+  email_template_id: validatedData.email_template_id,
         is_active: validatedData.is_active,
-        max_sends: validatedData.max_sends,
         updated_at: new Date().toISOString()
       })
       .eq('id', validatedData.id)
