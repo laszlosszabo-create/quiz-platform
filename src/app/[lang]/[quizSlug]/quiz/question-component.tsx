@@ -253,13 +253,21 @@ export function QuestionComponent({
           </div>
         </div>
         
-        {/* Scale labels */}
-        <div className="grid grid-cols-5 gap-2 text-center text-xs text-gray-600 mt-4">
-          <span>Egyáltalán nem</span>
-          <span>Kissé</span>
-          <span>Közepesen</span>
-          <span>Nagyon</span>
-          <span>Teljesen</span>
+        {/* Scale labels (use option translations when available) */}
+        <div
+          className="gap-2 text-center text-xs text-gray-600 mt-4"
+          style={{ display: 'grid', gridTemplateColumns: `repeat(${scaleMax}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: scaleMax }, (_, i) => {
+            const opt = options[i]
+            const key = opt?.key
+            const label = key ? (optionTranslations[key] || (`${i + 1}`)) : (`${i + 1}`)
+            return (
+              <span key={i} className="truncate px-2">
+                {label}
+              </span>
+            )
+          })}
         </div>
       </div>
     )
