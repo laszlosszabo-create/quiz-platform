@@ -238,8 +238,28 @@ export default function EnhancedQuestionsEditor({ quizData, onDataChange }: Enha
       setEditingQuestion(null)
       setIsAddingNew(false)
     } catch (err) {
-      console.error('Error saving question:', err)
-      setError('Hiba a kérdés mentésekor')
+      // Log rich error information — some Supabase error objects are not
+      // directly printable in the console, resulting in an empty `{}`.
+      console.error('Error saving question (raw):', err)
+      let errMsg = ''
+      try {
+        if (err && typeof err === 'object') {
+          // Prefer standard message property
+          errMsg = (err as any).message || ''
+          // If no message, serialize known properties
+          if (!errMsg) {
+            const props: any = {}
+            Object.getOwnPropertyNames(err).forEach((k) => { props[k] = (err as any)[k] })
+            errMsg = JSON.stringify(props)
+          }
+        } else {
+          errMsg = String(err)
+        }
+      } catch (e) {
+        errMsg = 'ismeretlen hiba'
+      }
+      console.error('Error saving question (details):', errMsg)
+      setError('Hiba a kérdés mentésekor: ' + errMsg)
     } finally {
       setSaving(false)
     }
