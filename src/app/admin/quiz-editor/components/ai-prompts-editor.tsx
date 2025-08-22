@@ -41,7 +41,7 @@ const AI_MODELS = {
   ]
 }
 
-const REQUIRED_VARIABLES = ['{{scores}}', '{{top_category}}', '{{name}}']
+const REQUIRED_VARIABLES = ['{{scores}}', '{{top_category}}', '{{name}}', '{{questions_and_answers}}']
 
 export default function AIPromptsEditor({ quizData, onDataChange }: AIPromptsEditorProps) {
   const [prompts, setPrompts] = useState<QuizPrompt[]>([])
@@ -528,6 +528,7 @@ Please provide personalized feedback based on these results. Be positive and con
               <li><code>{'{{name}}'}</code> - Felhasználó neve</li>
               <li><code>{'{{scores}}'}</code> - Quiz pontszámok</li>
               <li><code>{'{{top_category}}'}</code> - Legmagasabb kategória</li>
+              <li><code>{'{{questions_and_answers}}'}</code> - Kérdés-válasz párok strukturáltan</li>
             </ul>
             <p><strong>Opcionális változók:</strong></p>
             <ul className="list-disc list-inside space-y-1 ml-4">

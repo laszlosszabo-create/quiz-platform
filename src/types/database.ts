@@ -50,6 +50,7 @@ export interface QuizQuestion extends BaseEntity {
   help_text?: string
   options?: Json
   scoring?: Json
+  active?: boolean
 }
 
 export interface QuizScoringRule extends BaseEntity {

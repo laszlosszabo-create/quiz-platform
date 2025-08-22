@@ -8,7 +8,7 @@ import AdminAuthWrapper from '@/app/admin/components/admin-auth-wrapper'
 import QuizMetaEditor from './components/quiz-meta-editor'
 import TranslationEditor, { type TranslationEditorHandle } from './components/translation-editor'
 import AdvancedTranslationEditor from './components/advanced-translation-editor'
-import QuestionsEditor from './components/questions-editor'
+import EnhancedQuestionsEditor from './components/enhanced-questions-editor'
 import ScoringRulesEditor from './components/scoring-rules-editor'
 import AIPromptsEditor from './components/ai-prompts-editor'
 import ProductsEditor from './components/products-editor'
@@ -191,7 +191,7 @@ function QuizEditorContent() {
         )
       case 'questions':
         return (
-          <QuestionsEditor 
+          <EnhancedQuestionsEditor 
             quizData={quizData}
             onDataChange={handleFieldChange}
           />

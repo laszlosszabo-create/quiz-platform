@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase-config'
-import QuestionsEditor from '../../components/questions-editor'
+import EnhancedQuestionsEditor from './enhanced-questions-editor'
 import type { AdminUser } from '@/lib/admin-auth'
 
 type Quiz = {
@@ -280,7 +280,12 @@ export default function QuizEditForm({ quiz, adminUser }: QuizEditFormProps) {
                 Kérdések száma: {quiz.quiz_questions?.length || 0}
               </div>
             </div>
-            <QuestionsEditor quizId={quiz.id} adminUser={adminUser} />
+            <div className="p-4 bg-green-100 border-2 border-green-500 rounded mb-4">
+              <h2 className="text-2xl font-bold text-green-800">🚀 ENHANCED KÉRDÉS EDITOR (DEBUG)</h2>
+              <p>Ez a doboz csak teszt! Ha ezt látod, az új editor renderel.</p>
+              <p>Quiz ID: {quiz.id}</p>
+            </div>
+            <EnhancedQuestionsEditor quizData={quiz} onDataChange={() => {}} />
           </div>
         )}
 
