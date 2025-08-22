@@ -39,21 +39,21 @@ export function QuestionComponent({
   // Responsive compact layout: reduce paddings and ensure whole card fits viewport
   return (
     <div className="h-full flex flex-col">
-      <header className="px-3 py-2">
+      <header className="px-2 py-1">
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-gray-700">{questionNumber} / {totalQuestions}</div>
           <div className="text-xs text-gray-500">{question.type === 'scale' ? 'Értékeld 1-5 skálán' : ''}</div>
         </div>
-        <h2 className="text-xl font-bold mt-3">{questionTranslations.text || question.key}</h2>
+        <h2 className="text-lg font-semibold mt-2">{questionTranslations.text || question.key}</h2>
       </header>
 
       { (questionTranslations.help || (question as any).help_text) && (
-        <div className="px-3 mt-2">
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded">{questionTranslations.help || (question as any).help_text}</div>
+        <div className="px-2 mt-2">
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-2 rounded text-sm">{questionTranslations.help || (question as any).help_text}</div>
         </div>
       )}
 
-      <div className="flex-1 overflow-auto px-3 py-4">
+      <div className="flex-1 overflow-auto px-2 py-3">
         {question.type === 'scale' && (
           <div className="space-y-4">
             <div className="flex justify-between text-sm">
@@ -72,7 +72,7 @@ export function QuestionComponent({
                     <button
                       key={value}
                       onClick={() => handleScaleSelect(value)}
-                      className={`relative w-12 h-12 rounded-lg font-bold text-lg transition-all duration-200 transform ${isSelected ? 'bg-blue-500 text-white scale-110' : 'bg-white text-gray-700 border'} `}
+                      className={`relative w-9 h-9 rounded-lg font-semibold text-base transition-all duration-200 transform ${isSelected ? 'bg-blue-500 text-white scale-105' : 'bg-white text-gray-700 border'} `}
                     >
                       <span>{value}</span>
                     </button>
@@ -81,13 +81,13 @@ export function QuestionComponent({
               </div>
             </div>
 
-            <div className="grid gap-2 text-xs text-gray-600 mt-2" style={{display: 'grid', gridTemplateColumns: `repeat(${scaleMax}, minmax(0,1fr))`}}>
+            <div className="grid gap-1 text-xs text-gray-600 mt-2" style={{display: 'grid', gridTemplateColumns: `repeat(${scaleMax}, minmax(0,1fr))`}}>
               {Array.from({ length: scaleMax }, (_, i) => {
                 const opt = options[i]
                 const key = opt?.key
                 const label = key ? (optionTranslations[key] || (`${i + 1}`)) : (`${i + 1}`)
                 return (
-                  <span key={i} className="truncate px-1 text-center">{label}</span>
+                  <span key={i} className="truncate px-1 text-center text-[12px]">{label}</span>
                 )
               })}
             </div>
@@ -105,7 +105,7 @@ export function QuestionComponent({
         )}
       </div>
 
-      <footer className="p-3">
+      <footer className="p-2">
         <div className="text-center text-xs text-gray-500">Típus: {question.type} | Aktív: {(question as any).active ? 'Igen' : 'Nem'}</div>
       </footer>
     </div>
