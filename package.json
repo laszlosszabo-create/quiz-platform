@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "run-adhd-help-seed:dry": "bash ./scripts/run-adhd-help-seed.sh",
-  "run-adhd-help-seed": "APPLY_SEED=1 bash ./scripts/run-adhd-help-seed.sh",
+    "dev": "next dev",
+    "run-adhd-help-seed:dry": "bash ./scripts/run-adhd-help-seed.sh",
+    "run-adhd-help-seed": "APPLY_SEED=1 bash ./scripts/run-adhd-help-seed.sh",
     "dev:email-cron": "node scripts/dev-email-cron.js",
     "dev:email-cron:fast": "EMAIL_CRON_INTERVAL_MS=15000 node scripts/dev-email-cron.js",
     "build": "next build",
