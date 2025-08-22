@@ -1,0 +1,13 @@
+quiz_id,key,type,order,active,options_json,help_text
+PUT_QUIZ_ID,q1,single,1,true,"[{""key"": ""q1_o1"", ""score"": 0}, {""key"": ""q1_o2"", ""score"": 1}]","Optional helper text for q1 (hu)"
+PUT_QUIZ_ID,q2,scale,2,true,"[{""key"": ""q2_o1"", ""score"": 0}, {""key"": ""q2_o2"", ""score"": 1}, {""key"": ""q2_o3"", ""score"": 2}, {""key"": ""q2_o4"", ""score"": 3}, {""key"": ""q2_o5"", ""score"": 4}]","Optional helper text for q2 (hu)"
+
+# Notes:
+# - Leave the header line as-is. Replace PUT_QUIZ_ID with the quiz UUID.
+# - `key` must be unique per question within the quiz (e.g. q1, q2).
+# - `type` must be one of: single, multi, scale.
+# - `order` is integer (1 = first question).
+# - `active` is true/false.
+# - `options_json` must be a JSON array of objects [{"key":"<optionKey>","score":<number>}].
+#   In CSV the value is quoted; when opened in Sheets, keep it as a single cell containing the JSON text.
+# - `help_text` is optional and can be blank.

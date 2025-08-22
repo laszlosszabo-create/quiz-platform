@@ -1,0 +1,19 @@
+quiz_id,lang,field_key,value
+PUT_QUIZ_ID,hu,question:q1:text,Van-e nehézség a figyelemfenntartással?
+PUT_QUIZ_ID,en,question:q1:text,Do you have difficulty maintaining attention?
+PUT_QUIZ_ID,hu,option:q1_o1:label,Nem
+PUT_QUIZ_ID,hu,option:q1_o2:label,Igen
+PUT_QUIZ_ID,hu,question:q2:text,Milyen gyakran érzed...
+PUT_QUIZ_ID,hu,option:q2_o1:label,Soha
+PUT_QUIZ_ID,hu,option:q2_o2:label,Ritkán
+PUT_QUIZ_ID,hu,option:q2_o3:label,Néha
+PUT_QUIZ_ID,hu,option:q2_o4:label,Gyakran
+PUT_QUIZ_ID,hu,option:q2_o5:label,Mindig
+
+# Notes:
+# - field_key conventions:
+#   - question:<questionKey>:text  -> full question text
+#   - question:<questionKey>:help  -> optional help text (if preferred to store translations here)
+#   - option:<optionKey>:label     -> option label text
+# - Provide one row per translation (lang should be 'hu', 'en', etc.)
+# - Replace PUT_QUIZ_ID with the quiz UUID.

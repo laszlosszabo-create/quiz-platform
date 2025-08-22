@@ -66,7 +66,8 @@ export default function EnhancedQuestionsEditor({ quizData, onDataChange }: Enha
         .order('order')
 
       if (error) throw error
-      setQuestions(data || [])
+      // Default active to true if undefined/null
+      setQuestions((data || []).map(q => ({ ...q, active: q.active ?? true })))
     } catch (err) {
       console.error('Error loading questions:', err)
       setError('Hiba a kérdések betöltésekor')
