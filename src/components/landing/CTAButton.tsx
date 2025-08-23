@@ -1,6 +1,7 @@
-"use client"
+'use client'
 
-import Link from "next/link"
+import Link from 'next/link';
+import { apiFetch } from '@/lib/api-utils';
 import { useCallback } from "react"
 
 export interface CTAButtonProps {
@@ -39,9 +40,8 @@ export function CTAButton({ href, label, variant = "primary", size = "lg", track
       cta_position_group: group
           }
         }
-        fetch("/api/tracking", {
+        apiFetch("/api/tracking", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         })
       } catch {}

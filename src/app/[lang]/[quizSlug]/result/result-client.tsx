@@ -5,6 +5,7 @@ import { Quiz, Session, QuizQuestion, QuizScoringRule, QuizPrompt, Product, Quiz
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getTranslations } from '@/lib/translations'
 import { tracker } from '@/lib/tracking'
+import { apiFetch } from '@/lib/api-utils'
 
 interface ResultClientProps {
   quiz: Quiz
@@ -117,7 +118,7 @@ export function ResultClient({
     }
     setIdentitySaving(true)
     try {
-      const res = await fetch('/api/quiz/session', {
+      const res = await apiFetch('/api/quiz/session', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: session.id, user_email: userEmailInput.trim(), user_name: userNameInput.trim() })
@@ -251,7 +252,7 @@ export function ResultClient({
     }
 
     // Update session.scores in database
-    fetch('/api/quiz/session', {
+    apiFetch('/api/quiz/session', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -270,7 +271,7 @@ export function ResultClient({
     setIsLoadingAI(true)
     
     try {
-      const response = await fetch('/api/ai/generate-result', {
+      const response = await apiFetch('/api/ai/generate-result', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -331,7 +332,7 @@ export function ResultClient({
       }
 
       // If AI already cached OR analysis type is 'score', send immediately (score-only or cached AI)
-      const response = await fetch('/api/ai/generate-result', {
+      const response = await apiFetch('/api/ai/generate-result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -377,7 +378,7 @@ export function ResultClient({
     setIsProcessingPayment(true)
     
     try {
-      const response = await fetch('/api/stripe/checkout', {
+      const response = await apiFetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

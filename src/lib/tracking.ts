@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/lib/supabase-config'
+import { apiFetch } from '@/lib/api-utils'
 import { Database } from '@/types/database'
 
 type EventType = 
@@ -79,11 +80,8 @@ export class EventTracker {
         })
       }
 
-      await fetch('/api/tracking', {
+      await apiFetch('/api/tracking', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(payload),
       })
       

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Quiz, QuizTranslation } from '@/types/database'
 import { getTranslations } from '@/lib/translations'
+import { apiFetch } from '@/lib/api-utils'
 
 interface EmailGateProps {
   quiz: Quiz
@@ -56,7 +57,7 @@ export function EmailGate({
     setError('')
 
     try {
-      const response = await fetch('/api/quiz/lead', {
+      const response = await apiFetch('/api/quiz/lead', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

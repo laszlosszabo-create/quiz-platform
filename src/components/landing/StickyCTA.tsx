@@ -2,13 +2,13 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { apiFetch } from '@/lib/api-utils'
 
 export default function StickyCTA({ quizId, lang, href, label }: { quizId: string; lang: string; href: string; label: string }) {
   useEffect(() => {
     try {
-      fetch('/api/tracking', {
+      apiFetch('/api/tracking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event: 'page_view',
           page_type: 'landing',
@@ -25,9 +25,8 @@ export default function StickyCTA({ quizId, lang, href, label }: { quizId: strin
       <div className="max-w-5xl mx-auto">
         <Link href={href} className="block text-center bg-emerald-600 text-white font-semibold py-3 rounded-md" onClick={() => {
           try {
-            fetch('/api/tracking', {
+            apiFetch('/api/tracking', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 event: 'cta_click',
                 quiz_id: quizId,
