@@ -7,6 +7,9 @@ const nextConfig = {
   // trailingSlash removed to avoid breaking API route resolution
   
   // Dynamic deploy on Vercel (no static export) so API routes work
+  env: {
+    NEXT_PUBLIC_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA || 'local'
+  },
   
   webpack: (config, { dev }) => {
     // Disable webpack filesystem cache in dev to avoid stale pack.gz ENOENT issues

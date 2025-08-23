@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { CommitInfo } from '@/components/CommitInfo';
 
 export const metadata: Metadata = {
   title: 'Tools - Szabó Suti László',
@@ -23,7 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="hu">
-      <body>{children}</body>
+      <body>
+        {children}
+        <CommitInfo />
+      </body>
     </html>
   );
 }
