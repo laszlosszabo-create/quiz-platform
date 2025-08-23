@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Quiz, QuizQuestion, QuizTranslation } from '@/types/database'
 import { getTranslations, getQuestionTranslations, getOptionTranslations } from '@/lib/translations'
 import { tracker } from '@/lib/tracking'
+import { apiFetch } from '@/lib/api-utils'
 import { generateClientToken } from '@/lib/session'
 import { QuestionComponent } from './question-component'
 import { EmailGate } from './email-gate'
@@ -45,9 +46,8 @@ export function QuizClient({
   useEffect(() => {
     const startQuiz = async () => {
       // Create a session
-      const sessionResponse = await fetch('/api/quiz/session', {
+      const sessionResponse = await apiFetch('/api/quiz/session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           quizSlug: quiz.slug,
           lang
@@ -77,9 +77,8 @@ export function QuizClient({
     if (!sessionId) return
 
     try {
-      await fetch('/api/quiz/session', {
+      await apiFetch('/api/quiz/session', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: sessionId,
           answers: answers.reduce((acc, answer) => {
@@ -159,9 +158,8 @@ export function QuizClient({
 
     try {
       // Final save of all answers
-      await fetch('/api/quiz/session', {
+      await apiFetch('/api/quiz/session', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: sessionId,
           answers: finalAnswers.reduce((acc, answer) => {
