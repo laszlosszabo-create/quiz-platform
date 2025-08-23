@@ -22,7 +22,8 @@ export function apiUrl(path: string): string {
  */
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const basePath = getBasePath()
-  const urlWithBase = apiUrl(path)
+  const normalized = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path
+  const urlWithBase = apiUrl(normalized)
 
   // Add default headers (don't overwrite provided headers)
   const defaultOptions: RequestInit = {

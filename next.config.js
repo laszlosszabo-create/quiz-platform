@@ -4,8 +4,7 @@ const nextConfig = {
   
   // No basePath in Vercel deployment; static export path prefix removed
   
-  // Ensure trailing slash for consistent routing
-  trailingSlash: true,
+  // trailingSlash removed to avoid breaking API route resolution
   
   // Static export for shared hosting deployment
   output: process.env.STATIC_EXPORT === 'true' ? 'export' : undefined,
