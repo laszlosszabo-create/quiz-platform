@@ -8,8 +8,8 @@ import { getTranslation } from '@/lib/translations'
 const QUIZ_SLUG = 'adhd-quick-check'
 
 // SEO metadata from translations
-export async function generateMetadata({ params }: { params: any }) {
-  const { lang } = typeof params?.then === 'function' ? await params : params || { lang: 'hu' }
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
   const supabase = getSupabaseAdmin()
   const { data: quiz } = await supabase
     .from('quizzes')
@@ -41,9 +41,9 @@ export async function generateMetadata({ params }: { params: any }) {
   }
 }
 
-export default async function Page({ params }: { params: any }) {
-  // Next.js 15: params lehet Promise
-  const { lang } = typeof params?.then === 'function' ? await params : params || { lang: 'hu' }
+export default async function Page({ params }: { params: Promise<{ lang: string }> }) {
+  // Next.js 15: params már Promise formátumban van
+  const { lang } = await params
 
   // Betöltjük a kvízt és a fordításokat Supabase-ből
   const supabase = getSupabaseAdmin()
