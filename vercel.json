@@ -2,8 +2,8 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/tools/:path*",
-      "destination": "/:path*"
+      "source": "/tools/((?!api|_next|favicon.ico|robots.txt).*)",
+      "destination": "/$1"
     },
     {
       "source": "/tools",
