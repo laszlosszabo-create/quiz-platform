@@ -91,7 +91,7 @@ export default function ToolsIndexPage() {
                     <ArrowRightIcon className="w-4 h-4 ml-2" />
                   </Link>
                   <Link 
-                    href="/hu/adhd-quick-check/" 
+                    href="/hu/adhd-quick-check/info" 
                     className="inline-flex items-center justify-center border border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 font-semibold px-6 py-3 rounded-lg transition-colors"
                   >
                     További információ

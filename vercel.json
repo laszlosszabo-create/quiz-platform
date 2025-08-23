@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "name": "quiz-platform-tools",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/tools/:path*",
+      "destination": "/:path*"
+    },
+    {
+      "source": "/tools",
+      "destination": "/"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_key",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key",
+    "STRIPE_SECRET_KEY": "@stripe_secret_key",
+    "RESEND_API_KEY": "@resend_api_key",
+    "OPENAI_API_KEY": "@openai_api_key",
+    "ADMIN_PASSWORD": "@admin_password",
+    "JWT_SECRET": "@jwt_secret"
+  }
+}

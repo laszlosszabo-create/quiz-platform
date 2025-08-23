@@ -2,14 +2,14 @@
 const nextConfig = {
   // App Router is default in Next.js 15
   
-  // Production deployment under /tools/ subpath
-  basePath: process.env.NODE_ENV === 'production' ? '/tools' : '',
+  // Only use basePath for static hosting, not for Vercel
+  ...(process.env.STATIC_EXPORT === 'true' ? {
+    basePath: '/tools',
+    assetPrefix: '/tools'
+  } : {}),
   
   // Ensure trailing slash for consistent routing
   trailingSlash: true,
-  
-  // Asset prefix for static files in production
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/tools' : '',
   
   // Static export for shared hosting deployment
   output: process.env.STATIC_EXPORT === 'true' ? 'export' : undefined,
