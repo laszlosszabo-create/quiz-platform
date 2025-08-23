@@ -4,32 +4,17 @@
 
 // Get the current base path from the browser URL
 function getBasePath(): string {
-  if (typeof window === 'undefined') {
-    // Server-side: no base path needed for API routes
-    return '';
-  }
-  
-  // Client-side: detect if we're running under /tools/ prefix
-  const pathname = window.location.pathname;
-  if (pathname.startsWith('/tools/')) {
-    return '/tools';
-  }
-  
-  return '';
+  // After migration: no basePath. Keep function for backward compatibility.
+  return ''
 }
 
 /**
  * Create API URL with proper base path
  */
 export function apiUrl(path: string): string {
-  const basePath = getBasePath();
-  
-  // Ensure path starts with /
-  if (!path.startsWith('/')) {
-    path = '/' + path;
-  }
-  
-  return `${basePath}${path}`;
+  const basePath = getBasePath()
+  if (!path.startsWith('/')) path = '/' + path
+  return `${basePath}${path}`
 }
 
 /**

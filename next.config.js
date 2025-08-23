@@ -2,11 +2,7 @@
 const nextConfig = {
   // App Router is default in Next.js 15
   
-  // Only use basePath for static hosting, not for Vercel
-  ...(process.env.STATIC_EXPORT === 'true' ? {
-    basePath: '/tools',
-    assetPrefix: '/tools'
-  } : {}),
+  // No basePath in Vercel deployment; static export path prefix removed
   
   // Ensure trailing slash for consistent routing
   trailingSlash: true,

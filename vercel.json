@@ -1,13 +1,15 @@
 {
   "version": 2,
-  "rewrites": [
+  "redirects": [
     {
       "source": "/tools/:path*",
-      "destination": "/:path*"
+      "destination": "/:path*",
+      "permanent": true
     },
     {
       "source": "/tools",
-      "destination": "/"
+      "destination": "/",
+      "permanent": true
     }
   ]
 }
