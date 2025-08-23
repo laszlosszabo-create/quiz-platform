@@ -71,12 +71,17 @@ export async function POST(request: NextRequest) {
 
     const customerEmail = lead?.email
 
-    // Build base URL for redirects - handle localhost development
-    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin')
+    // Build base URL for redirects - handle both development and production
+    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+    
+    // Fallback to request origin if no BASE_URL is set
+    if (!baseUrl) {
+      baseUrl = request.headers.get('origin') || undefined
+    }
     
     // For localhost development, use HTTP (Stripe test mode supports this)
-    if (!baseUrl || baseUrl.startsWith('http://localhost')) {
-      baseUrl = 'http://localhost:3000'  // Fix: Use correct port
+    if (!baseUrl || baseUrl.includes('localhost')) {
+      baseUrl = 'http://localhost:3000'  // Development fallback
     }
 
     // Create Stripe checkout session

@@ -20,10 +20,11 @@ const updateQueueItemSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const quizId = searchParams.get('quiz_id')
-    const status = searchParams.get('status')
-    const limit = searchParams.get('limit')
-    const offset = searchParams.get('offset')
+  const quizId = searchParams.get('quiz_id')
+  const status = searchParams.get('status')
+  const limit = searchParams.get('limit')
+  const offset = searchParams.get('offset')
+  const order = searchParams.get('order') // optional: 'updated_desc'
 
     if (!quizId) {
       return NextResponse.json(
@@ -65,8 +66,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Execute query
+    // Ordering: default by scheduled_at asc; optional recent ordering by updated_at desc
+    if (order === 'updated_desc') {
+      query = query.order('updated_at', { ascending: false, nullsFirst: false }).order('scheduled_at', { ascending: false })
+    } else {
+      query = query.order('scheduled_at', { ascending: true })
+    }
+
     const { data: queueItemsRaw, error } = await query
-      .order('scheduled_at', { ascending: true })
       .range(validatedData.offset, validatedData.offset + validatedData.limit - 1)
 
     if (error) {

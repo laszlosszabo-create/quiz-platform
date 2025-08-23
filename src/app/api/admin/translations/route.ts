@@ -93,38 +93,63 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Translations array is required' }, { status: 400 })
     }
 
-    const updatedTranslations = []
+    // Group incoming translations by quiz_id and lang to perform delete-then-insert
+    const byQuizAndLang: Record<
+      string,
+      Record<string, Array<{ quiz_id: string; field_key: string; lang: string; value: string }>>
+    > = {}
 
-    for (const translation of translations) {
-      if (!translation.quiz_id || !translation.field_key || !translation.lang || !translation.value) {
-        continue // Skip invalid entries
-      }
-
-      const { data, error } = await supabase
-        .from('quiz_translations')
-        .upsert({
-          quiz_id: translation.quiz_id,
-          field_key: translation.field_key,
-          lang: translation.lang,
-          value: translation.value,
-          updated_at: new Date().toISOString()
-        })
-        .select()
-
-      if (error) {
-        console.error(`Error updating translation ${translation.field_key}:`, error)
+    for (const t of translations) {
+      if (!t || !t.quiz_id || !t.field_key || !t.lang || typeof t.value !== 'string') {
         continue
       }
+      byQuizAndLang[t.quiz_id] = byQuizAndLang[t.quiz_id] || {}
+      byQuizAndLang[t.quiz_id][t.lang] = byQuizAndLang[t.quiz_id][t.lang] || []
+      byQuizAndLang[t.quiz_id][t.lang].push({ quiz_id: t.quiz_id, field_key: t.field_key, lang: t.lang, value: t.value })
+    }
 
-      if (data) {
-        updatedTranslations.push(...data)
+    const results: any[] = []
+
+    for (const quizId of Object.keys(byQuizAndLang)) {
+      const langs = byQuizAndLang[quizId]
+      for (const lang of Object.keys(langs)) {
+        const rows = langs[lang]
+        const fieldKeys = rows.map(r => r.field_key)
+
+        try {
+          // Delete any existing rows for this quiz/lang + these keys
+          const { error: delError } = await supabase
+            .from('quiz_translations')
+            .delete()
+            .eq('quiz_id', quizId)
+            .eq('lang', lang)
+            .in('field_key', fieldKeys)
+
+          if (delError) {
+            console.error('Error deleting existing translations for quiz', quizId, 'lang', lang, delError)
+          }
+
+          // Insert the new/updated rows
+          const toInsert = rows.map(r => ({ ...r, updated_at: new Date().toISOString() }))
+          const { data: inserted, error: insertError } = await supabase
+            .from('quiz_translations')
+            .insert(toInsert)
+            .select()
+
+          if (insertError) {
+            console.error('Error inserting translations for quiz', quizId, 'lang', lang, insertError)
+            continue
+          }
+
+          if (inserted) results.push(...inserted)
+        } catch (err: any) {
+          console.error('Unexpected error updating translations for', quizId, lang, err)
+          continue
+        }
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      translations: updatedTranslations
-    })
+    return NextResponse.json({ success: true, translations: results })
 
   } catch (error: any) {
     console.error('Translations API PUT error:', error)

@@ -41,6 +41,10 @@
                     <h2 class="text-xl font-semibold">Landing (LP)</h2>
                     <span id="lp-missing" class="text-sm text-amber-700 bg-amber-100 px-2 py-1 rounded hidden">⚠️ Hiányzó kulcsok</span>
                 </div>
+             <!-- Container for fields that don't have a dedicated input in this HTML
+                 We show them here so admins can still see and copy the values that
+                 the landing page uses even if the form doesn't include every key. -->
+             <div id="missing-fields" class="mt-4 space-y-2 hidden"></div>
                 <div class="grid gap-4">
                     <div>
                         <label for="landing_hero_title" class="block text-sm font-medium text-gray-700 mb-2">Hero cím</label>
@@ -290,14 +294,68 @@
                     'landing_final_cta_title', 'landing_final_cta_desc'
                 ];
 
-        // Elements
-        const btnHu = document.getElementById('btn-hu');
-        const btnEn = document.getElementById('btn-en');
-        const btnSave = document.getElementById('btn-save');
-        const btnDiscard = document.getElementById('btn-discard');
-        const status = document.getElementById('status');
-        const currentLangSpan = document.getElementById('current-lang');
-        const changedCount = document.getElementById('changed-count');
+        // Fallbacks copied from the landing page defaults so the native editor
+        // shows the same strings the landing displays when translations are missing.
+        const FALLBACKS = {
+            'landing_badge_1': '5,000+ kitöltés',
+            'landing_badge_2': '98% elégedettség',
+            'landing_badge_3': 'Személyre szabott áttekintés',
+            'landing_hero_title': 'ADHD gyorsteszt — 5 perc alatt, azonnali, személyre szabott visszajelzés',
+            'landing_hero_sub': 'Válaszolj néhány kérdésre és kapsz egy rövid, személyre szabott visszajelzést. Nem helyettesíti a diagnózist.',
+            'landing_cta_primary': 'Kezdjük a gyorstesztet',
+            'landing_cta_secondary': 'Tudj meg többet',
+            'landing_stats_title': 'Már több ezren használták',
+            'landing_stats_desc': 'Gyors, megbízható és tájékoztató eredmények',
+            'landing_stat_1_number': '15.000+',
+            'landing_stat_1_label': 'Kitöltő',
+            'landing_stat_2_number': '2 perc',
+            'landing_stat_2_label': 'Átlagos idő',
+            'landing_stat_3_number': '94%',
+            'landing_stat_3_label': 'Elégedettség',
+            'landing_stat_4_number': '100%',
+            'landing_stat_4_label': 'Ingyenes',
+            'landing_trust_item_1_title': 'Gyors és egyszerű',
+            'landing_trust_item_1_desc': '2 perc, 8–10 kérdés, nincs regisztráció',
+            'landing_trust_item_2_title': 'Személyre szabott',
+            'landing_trust_item_2_desc': 'Rövid és érthető visszajelzés a válaszaid alapján',
+            'landing_trust_item_3_title': 'Tájékoztató jellegű',
+            'landing_trust_item_3_desc': 'Nem helyettesíti az orvosi diagnózist, csak tájékoztat',
+            'landing_how_1_title': 'Válaszolj',
+            'landing_how_1_desc': 'Egyszerű kérdések a mindennapi figyelemről és impulzivitásról',
+            'landing_how_2_title': 'Értékelünk',
+            'landing_how_2_desc': 'Automatikus kiértékelés átlátható, tudományos skálán',
+            'landing_how_3_title': 'Visszajelzés',
+            'landing_how_3_desc': 'Személyre szabott eredmény, tippek és következő lépések',
+            'landing_expect_title': 'Mire számíthatsz?',
+            'landing_expect_desc': 'Minden amit tudnod kell az ADHD gyorstesztről',
+            'landing_guarantee_title': 'Garanciáink',
+            'landing_guarantee_1': '✓ 100% ingyenes, rejtett költségek nélkül',
+            'landing_guarantee_2': '✓ Nincs regisztráció vagy email cím szükséges',
+            'landing_guarantee_3': '✓ Válaszaid nem kerülnek tárolásra',
+            'landing_guarantee_4': '✓ Azonnali eredmény, várakozás nélkül',
+            'landing_urgency_title': 'Miért fontos most elkezdeni?',
+            'landing_urgency_desc': 'Az ADHD tünetek felismerése az első lépés a jobb mindennapokhoz. Minél hamarabb tudsz róla, annál hamarabb kezdheted el a megfelelő stratégiák alkalmazását.',
+            'landing_disclaimer': 'Ez az eszköz nem minősül orvosi eszköznek és nem ad diagnózist. Tájékoztató jellegű. Ha felmerül benned az ADHD gyanúja, fordulj szakemberhez.',
+            'landing_medical_title': 'Fontos orvosi tudnivalók',
+            'landing_medical_point_1': 'Ez a teszt csak tájékoztató jellegű, nem helyettesíti az orvosi vizsgálatot',
+            'landing_medical_point_2': 'ADHD diagnózis csak szakorvos által végezhető alapos vizsgálat után',
+            'landing_medical_point_3': 'Ha a teszt alapján felmerül gyanú, fordulj pszichiáterhez vagy neurológushoz',
+            'landing_medical_point_4': 'A teszt eredménye nem jelenti automatikusan ADHD meglétét vagy hiányát',
+            'landing_privacy_title': 'Adatvédelem és biztonság',
+            'landing_privacy_desc': 'Adataid biztonsága a legfontosabb számunkra',
+            'landing_time_estimate': 'Becsült idő: 2-3 perc',
+            'landing_question_count': '8-10 kérdés'
+        };
+
+    // Elements (defensive: gracefully handle missing DOM nodes)
+    const btnHu = document.getElementById('btn-hu');
+    const btnEn = document.getElementById('btn-en');
+    const btnSave = document.getElementById('btn-save');
+    const btnDiscard = document.getElementById('btn-discard');
+    const status = document.getElementById('status');
+    const currentLangSpan = document.getElementById('current-lang');
+    const changedCount = document.getElementById('changed-count');
+    const missingFieldsContainer = document.getElementById('missing-fields');
 
         // Load translations for current language
         async function loadTranslations() {
@@ -309,13 +367,31 @@
                 const translations = data.translations || {};
                 
                 let missingCount = 0;
+                // Reset missing fields area on each load
+                if (missingFieldsContainer) missingFieldsContainer.innerHTML = '';
                 fieldKeys.forEach(key => {
                     const field = document.getElementById(key);
                     const langTranslations = translations[currentLang] || {};
-                    field.value = langTranslations[key] || '';
-                    if (!langTranslations[key]) missingCount++;
+                    // Prefer DB value, then fallback map, then empty string
+                    const value = langTranslations[key] ?? FALLBACKS[key] ?? '';
+                    if (field) {
+                        // input/textarea exists in this HTML: populate
+                        field.value = value;
+                    } else {
+                        // field missing from the form: count and show in fallback container
+                        missingCount++;
+                        if (missingFieldsContainer) {
+                            missingFieldsContainer.classList.remove('hidden');
+                            const row = document.createElement('div');
+                            row.className = 'p-2 bg-white border rounded';
+                            row.innerHTML = `<div class="text-xs text-gray-500">${key}</div><div class="text-sm text-gray-800">${escapeHtml(value)}</div>`;
+                            missingFieldsContainer.appendChild(row);
+                        }
+                    }
                 });
-                document.getElementById('lp-missing').classList.toggle('hidden', missingCount === 0);
+                const lpMissingEl = document.getElementById('lp-missing');
+                if (lpMissingEl) lpMissingEl.classList.toggle('hidden', missingCount === 0);
+                if (missingFieldsContainer && missingCount === 0) missingFieldsContainer.classList.add('hidden');
                 
                 setClean();
             } catch (error) {
@@ -333,7 +409,7 @@
                 fieldKeys.forEach(key => {
                     const field = document.getElementById(key);
                     if (!translations[currentLang]) translations[currentLang] = {};
-                    translations[currentLang][key] = field.value;
+                    translations[currentLang][key] = field ? field.value : '';
                 });
 
                 const response = await fetch(`/api/admin/quizzes/${quizId}`, {
@@ -408,11 +484,24 @@
         btnSave.addEventListener('click', saveTranslations);
         btnDiscard.addEventListener('click', loadTranslations);
 
-        // Add change listeners to all fields
+        // Add change listeners to fields that exist in the DOM
         fieldKeys.forEach(key => {
             const field = document.getElementById(key);
-            field.addEventListener('input', () => onFieldChange(key));
+            if (field) {
+                field.addEventListener('input', () => onFieldChange(key));
+            }
         });
+
+        // Helper: escape HTML when showing missing field values
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
         // --- Iframe auto-resize: report height to parent ---
         function postHeight() {

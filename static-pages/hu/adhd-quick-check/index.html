@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADHD Gyorsteszt - Szabó Suti László</title>
+    <meta name="description" content="Ingyenes ADHD önteszt felnőtteknek. Validált kérdések alapján készült gyors felmérés.">
+    
+    <!-- Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="/tools/favicon.ico">
+    
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .question-card { transition: all 0.3s ease; }
+        .question-card.active { transform: scale(1.02); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">ADHD Gyorsteszt</h1>
+            <p class="text-gray-600">Felnőttkori ADHD tünetek felmérése</p>
+            <div class="mt-4 text-sm text-gray-500">
+                ⏱️ Becsült idő: 5-10 perc
+            </div>
+        </header>
+
+        <!-- Progress Bar -->
+        <div class="mb-8">
+            <div class="bg-gray-200 rounded-full h-2">
+                <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="text-center mt-2 text-sm text-gray-600">
+                Kérdés <span id="current-question">1</span> / <span id="total-questions">18</span>
+            </div>
+        </div>
+
+        <!-- Question Container -->
+        <div id="question-container" class="mb-8">
+            <!-- Questions will be loaded here by JavaScript -->
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center">
+            <button id="prev-btn" onclick="previousQuestion()" 
+                    class="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                ← Előző
+            </button>
+            
+            <button id="next-btn" onclick="nextQuestion()" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                Következő →
+            </button>
+        </div>
+
+        <!-- Results Section (hidden initially) -->
+        <div id="results-section" class="hidden mt-8 p-6 bg-white rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Teszt eredménye</h2>
+            <div id="result-content">
+                <!-- Results will be shown here -->
+            </div>
+            
+            <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <p class="text-sm text-yellow-800">
+                            <strong>Fontos:</strong> Ez a teszt nem helyettesíti a szakorvosi diagnózist. 
+                            Ha a tünetek jelentős problémát okoznak, forduljon orvoshoz.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 text-gray-500">
+            <p class="text-sm">
+                <a href="/tools/" class="text-blue-600 hover:text-blue-800">
+                    ← Vissza az eszközökhöz
+                </a>
+            </p>
+            <p class="mt-2 text-xs">
+                &copy; 2025 Szabó Suti László | 
+                <a href="https://szabosutilaszlo.com" class="text-blue-600 hover:text-blue-800">
+                    szabosutilaszlo.com
+                </a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // ADHD Quiz Questions (Hungarian)
+        const questions = [
+            {
+                id: 1,
+                text: "Nehézséget jelent számomra a részletekre való odafigyelés, vagy gondatlan hibákat követek el a munkában vagy egyéb tevékenységekben.",
+                type: "attention"
+            },
+            {
+                id: 2,
+                text: "Nehezünre esik a figyelem fenntartása feladatok vagy szórakoztató tevékenységek során.",
+                type: "attention"
+            },
+            {
+                id: 3,
+                text: "Úgy tűnik, mintha nem figyelek, amikor közvetlenül hozzám beszélnek.",
+                type: "attention"
+            },
+            {
+                id: 4,
+                text: "Nem követem végig az utasításokat, és nem fejezem be a munkámat vagy feladataimat.",
+                type: "attention"
+            },
+            {
+                id: 5,
+                text: "Nehézséget jelent számomra a feladatok és tevékenységek megszervezése.",
+                type: "attention"
+            },
+            {
+                id: 6,
+                text: "Kerülöm vagy vonakodok olyan feladatoktól, amelyek kitartó szellemi erőfeszítést igényelnek.",
+                type: "attention"
+            },
+            {
+                id: 7,
+                text: "Elveszítem a feladatokhoz vagy tevékenységekhez szükséges dolgokat.",
+                type: "attention"
+            },
+            {
+                id: 8,
+                text: "Könnyen elvonódik a figyelmem külső ingerek hatására.",
+                type: "attention"
+            },
+            {
+                id: 9,
+                text: "Feledékeny vagyok a napi tevékenységek során.",
+                type: "attention"
+            },
+            {
+                id: 10,
+                text: "Gyakran mozgatom a kezeimet vagy lábaimat, vagy forgolódom a helyemen.",
+                type: "hyperactivity"
+            },
+            {
+                id: 11,
+                text: "Gyakran felkelek olyan helyzetekben, amikor elvárható lenne, hogy ülve maradjak.",
+                type: "hyperactivity"
+            },
+            {
+                id: 12,
+                text: "Gyakran érzem úgy, mintha 'motor hajtana', vagy úgy viselkedem, 'mintha fel lennék pörögve'.",
+                type: "hyperactivity"
+            },
+            {
+                id: 13,
+                text: "Nehezen veszek részt csendes szabadidős tevékenységekben.",
+                type: "hyperactivity"
+            },
+            {
+                id: 14,
+                text: "Gyakran 'fecsegek' túl sokat.",
+                type: "hyperactivity"
+            },
+            {
+                id: 15,
+                text: "Gyakran kikiáltom a választ, mielőtt a kérdést befejezték volna.",
+                type: "impulsivity"
+            },
+            {
+                id: 16,
+                text: "Gyakran nehezen várok a soromra.",
+                type: "impulsivity"
+            },
+            {
+                id: 17,
+                text: "Gyakran megszakítom vagy zavarba hozom másokat.",
+                type: "impulsivity"
+            },
+            {
+                id: 18,
+                text: "Nehezen tudok döntéseket hozni a mindennapi életben.",
+                type: "impulsivity"
+            }
+        ];
+
+        const answerOptions = [
+            { value: 0, text: "Soha" },
+            { value: 1, text: "Ritkán" },
+            { value: 2, text: "Néha" },
+            { value: 3, text: "Gyakran" },
+            { value: 4, text: "Nagyon gyakran" }
+        ];
+
+        let currentQuestionIndex = 0;
+        let answers = {};
+
+        function initializeQuiz() {
+            document.getElementById('total-questions').textContent = questions.length;
+            showQuestion(currentQuestionIndex);
+        }
+
+        function showQuestion(index) {
+            const question = questions[index];
+            const container = document.getElementById('question-container');
+            
+            container.innerHTML = `
+                <div class="question-card bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-lg font-medium text-gray-900 mb-6">${question.text}</h3>
+                    <div class="space-y-3">
+                        ${answerOptions.map(option => `
+                            <label class="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                                <input type="radio" name="question_${question.id}" value="${option.value}" 
+                                       onchange="selectAnswer(${question.id}, ${option.value})"
+                                       ${answers[question.id] === option.value ? 'checked' : ''}
+                                       class="mr-3 text-blue-600">
+                                <span class="text-gray-700">${option.text}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Update progress
+            const progress = ((index + 1) / questions.length) * 100;
+            document.getElementById('progress-bar').style.width = progress + '%';
+            document.getElementById('current-question').textContent = index + 1;
+
+            // Update navigation buttons
+            document.getElementById('prev-btn').disabled = index === 0;
+            document.getElementById('next-btn').disabled = answers[question.id] === undefined;
+            
+            if (index === questions.length - 1 && answers[question.id] !== undefined) {
+                document.getElementById('next-btn').textContent = 'Eredmény megtekintése';
+            } else {
+                document.getElementById('next-btn').textContent = 'Következő →';
+            }
+        }
+
+        function selectAnswer(questionId, value) {
+            answers[questionId] = value;
+            document.getElementById('next-btn').disabled = false;
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion(currentQuestionIndex);
+            } else {
+                showResults();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion(currentQuestionIndex);
+            }
+        }
+
+        function showResults() {
+            const attentionScore = questions.filter(q => q.type === 'attention')
+                .reduce((sum, q) => sum + (answers[q.id] || 0), 0);
+            
+            const hyperactivityScore = questions.filter(q => q.type === 'hyperactivity')
+                .reduce((sum, q) => sum + (answers[q.id] || 0), 0);
+            
+            const impulsivityScore = questions.filter(q => q.type === 'impulsivity')
+                .reduce((sum, q) => sum + (answers[q.id] || 0), 0);
+            
+            const totalScore = attentionScore + hyperactivityScore + impulsivityScore;
+
+            let resultText = '';
+            let resultClass = '';
+
+            if (totalScore <= 24) {
+                resultText = 'Alacsony kockázat';
+                resultClass = 'text-green-600';
+            } else if (totalScore <= 36) {
+                resultText = 'Közepes kockázat';
+                resultClass = 'text-yellow-600';
+            } else {
+                resultText = 'Magasabb kockázat';
+                resultClass = 'text-red-600';
+            }
+
+            document.getElementById('question-container').style.display = 'none';
+            document.querySelector('.flex.justify-between').style.display = 'none';
+            
+            document.getElementById('results-section').innerHTML = `
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">Teszt eredménye</h2>
+                
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-medium text-gray-900 mb-2">Összpontszám</h3>
+                        <div class="text-3xl font-bold ${resultClass}">${totalScore} / 72</div>
+                        <div class="text-sm text-gray-600 mt-1">${resultText}</div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Figyelem:</span>
+                            <span class="font-medium">${attentionScore} / 36</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Hiperaktivitás:</span>
+                            <span class="font-medium">${hyperactivityScore} / 20</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Impulzivitás:</span>
+                            <span class="font-medium">${impulsivityScore} / 16</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h4 class="font-medium text-blue-900 mb-2">Mit jelentenek az eredmények?</h4>
+                    <div class="text-sm text-blue-800 space-y-2">
+                        ${totalScore <= 24 ? 
+                            '<p>Az eredmények alapján kevés ADHD-re jellemző tünet figyelhető meg. Ez nem jelenti automatikusan, hogy nincsenek figyelmi nehézségei, de a jelenlegi tünetek valószínűleg nem utalnak ADHD-ra.</p>' :
+                            totalScore <= 36 ?
+                            '<p>Az eredmények néhány ADHD-re jellemző tünetet mutatnak. Érdemes megfigyelni, hogy ezek a tünetek mennyire befolyásolják a mindennapi életét. Ha jelentős problémát okoznak, konzultáljon szakemberrel.</p>' :
+                            '<p>Az eredmények több ADHD-re jellemző tünetet mutatnak. Ezek a tünetek valószínűleg befolyásolják a mindennapi életét. Ajánlott szakemberrel (pszichiáter, pszichológus) konzultálni a pontos diagnózis érdekében.</p>'
+                        }
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button onclick="restartQuiz()" 
+                            class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                        Teszt újrakezdése
+                    </button>
+                    <a href="/tools/" 
+                       class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center">
+                        Vissza az eszközökhöz
+                    </a>
+                </div>
+
+                <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm text-yellow-800">
+                                <strong>Fontos:</strong> Ez a teszt nem helyettesíti a szakorvosi diagnózist. 
+                                Ha a tünetek jelentős problémát okoznak a munkában, tanulásban vagy társas kapcsolatokban, 
+                                forduljon pszichiáterhez vagy klinikai pszichológushoz.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-section').classList.remove('hidden');
+        }
+
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            answers = {};
+            document.getElementById('question-container').style.display = 'block';
+            document.querySelector('.flex.justify-between').style.display = 'flex';
+            document.getElementById('results-section').classList.add('hidden');
+            initializeQuiz();
+        }
+
+        // Initialize quiz when page loads
+        document.addEventListener('DOMContentLoaded', initializeQuiz);
+    </script>
+</body>
+</html>

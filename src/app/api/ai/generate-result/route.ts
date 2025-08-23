@@ -383,12 +383,12 @@ export async function POST(request: NextRequest) {
       .eq('quiz_id', validatedData.quiz_id)
       .order('order_index')
 
-    // Prepare user data with robust fallbacks
+    // Prepare user data with STRICT fallback (no cross-quiz last lead leak)
     let userName = session.user_name || (session as any).name || 'Kedves Felhasználó'
     let userEmail = session.user_email || (session as any).email || ''
+    let emailSource = userEmail ? 'session' : 'none'
     if (!userEmail) {
       try {
-        // Try quiz_leads by session
         const { data: leadBySession } = await supabase
           .from('quiz_leads')
           .select('email')
@@ -398,25 +398,12 @@ export async function POST(request: NextRequest) {
           .maybeSingle()
         if (leadBySession?.email) {
           userEmail = leadBySession.email
-          // name not available in legacy schema
+          emailSource = 'lead_session'
         }
       } catch {}
     }
     if (!userEmail) {
-      try {
-        // As a last resort, try generic leads linking by quiz and most recent
-        const { data: genericLead } = await supabase
-          .from('quiz_leads')
-          .select('email')
-          .eq('quiz_id', validatedData.quiz_id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (genericLead?.email) {
-          userEmail = genericLead.email
-          // name not available in legacy schema
-        }
-      } catch {}
+      return NextResponse.json({ error: 'missing_email', message: 'Nincs rögzített email ehhez a sessionhöz' }, { status: 409 })
     }
     
     // Calculate percentage and category
@@ -532,7 +519,7 @@ export async function POST(request: NextRequest) {
       // Trigger quiz completion email after AI result is generated (convert markdown to HTML for email)
       try {
         const aiHtml = markdownToHtml(aiResult)
-        await emailTrigger.triggerQuizCompletion(
+  await emailTrigger.triggerQuizCompletion(
           validatedData.quiz_id,
           userEmail,
           {
@@ -543,6 +530,7 @@ export async function POST(request: NextRequest) {
           userName,
           validatedData.session_id
         )
+  // (emailSource jelenleg lokális; jövőbeni bővítéshez injection szükséges az automation rétegbe)
       } catch (emailError) {
         console.error('Email trigger failed:', emailError)
         // Don't fail the API call if email fails
@@ -663,15 +651,25 @@ async function generateScoreOnlyResult(session: any, quizId: string, lang: strin
   let scorePercentage = 0
   
   if (scoringRules && scoringRules.length > 0) {
-    const maxScore = scoringRules.reduce((max, rule) => Math.max(max, rule.min_score || 0), 0)
-    scorePercentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0
-    
+    // FIXED: Find the appropriate scoring rule based on totalScore range
     const applicableRule = scoringRules
-      .sort((a, b) => (b.min_score || 0) - (a.min_score || 0))
-      .find(rule => totalScore >= (rule.min_score || 0))
+      .sort((a, b) => (b.weights as any)?.min_score - (a.weights as any)?.min_score) // Sort by min_score descending
+      .find(rule => {
+        const weights = rule.weights as any || {}
+        const minScore = weights.min_score || 0
+        const maxScore = weights.max_score || 100
+        return totalScore >= minScore && totalScore <= maxScore
+      })
     
-    if (applicableRule?.category) {
-      category = applicableRule.category
+    if (applicableRule) {
+      const weights = applicableRule.weights as any || {}
+      category = weights.category || 'Alacsony'
+      
+      // Calculate percentage within the specific rule range
+      const minScore = weights.min_score || 0
+      const maxScore = weights.max_score || 100
+      scorePercentage = maxScore > minScore ? 
+        Math.round(((totalScore - minScore) / (maxScore - minScore)) * 100) : 0
     }
   }
 

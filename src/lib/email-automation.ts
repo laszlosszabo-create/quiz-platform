@@ -16,6 +16,197 @@ export interface EmailTriggerEvent {
   metadata?: Record<string, any>
 }
 
+// Central helper: build canonical variables for result emails by merging AI result and score data.
+export async function prepareEmailAnalysisVariables(
+  event: EmailTriggerEvent,
+  supabase: any,
+  rule?: any
+): Promise<Record<string, any>> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://quizapp.hu'
+
+  const variables: Record<string, any> = {
+    user_name: event.user_name || 'Értékes Ügyfél',
+    user_email: event.user_email,
+    quiz_id: event.quiz_id,
+    quiz_completion_date: new Date().toLocaleDateString('hu-HU'),
+    support_email: process.env.SUPPORT_EMAIL || 'support@quizapp.hu',
+    company_name: 'Quiz Platform',
+    quiz_title: 'Quiz',
+    percentage: '0',
+    score: '0',
+    category: 'Alapszintű',
+    // URL variables
+    result_url: `${baseUrl}/results?session=${event.metadata?.session_id || ''}`,
+    booking_url: `${baseUrl}/booking?quiz=${event.quiz_id}`,
+    download_url: `${baseUrl}/downloads?quiz=${event.quiz_id}&result=${event.metadata?.session_id || ''}`,
+    unsubscribe_url: `${baseUrl}/unsubscribe`,
+  }
+
+  // Helper to safely stringify
+  const safeString = (v: any) => (v == null ? '' : String(v))
+
+  // If quiz_result came from the trigger, seed variables (best-effort)
+  if (event.quiz_result) {
+    variables.quiz_result_percentage = safeString(event.quiz_result.percentage)
+    variables.percentage = safeString(event.quiz_result.percentage ?? variables.percentage)
+    // Do not try to invent an absolute score here if DB scores exist later
+    variables.score = safeString(event.quiz_result.text ? '' : variables.score)
+    variables.quiz_result_text = safeString(event.quiz_result.text)
+    if (event.quiz_result.ai_result) variables.ai_result = String(event.quiz_result.ai_result)
+    variables.category = safeString(event.quiz_result.text || variables.category)
+  }
+
+  // Late enrichment from DB: prefer authoritative session.scores and answers
+  try {
+    const sessionId = event.metadata?.session_id
+    if (sessionId) {
+      const { data: sessionRow } = await supabase.from('quiz_sessions').select('answers, scores, result_snapshot, quiz_id').eq('id', sessionId).maybeSingle()
+      if (sessionRow) {
+        const answers = (sessionRow as any).answers || {}
+        const scoresObj = (sessionRow as any).scores || {}
+        const snapshot = (sessionRow as any).result_snapshot || {}
+
+        // Prefer DB scores if present
+        if (scoresObj && (scoresObj.total != null || scoresObj.totalScore != null)) {
+          const actualScore = scoresObj.total ?? scoresObj.totalScore
+          variables.score = safeString(actualScore)
+
+          // Category mapping (internal -> localized)
+          if (scoresObj.category) {
+            variables.category = scoresObj.category === 'high' ? 'Magas' : scoresObj.category === 'medium' ? 'Közepes' : 'Alacsony'
+          }
+
+          // If description contains (NN%) extract it
+          if (scoresObj.description && typeof scoresObj.description === 'string') {
+            const m = String(scoresObj.description).match(/\((\d{1,3})%\)/)
+            if (m) {
+              variables.percentage = m[1]
+              variables.quiz_result_percentage = m[1]
+            }
+          }
+        }
+
+        // Populate QA pairs
+        variables.qa_pairs = Object.keys(answers || {}).map(k => ({ question: k, answer: answers[k] }))
+        variables.scores = scoresObj
+
+        // If AI exists in snapshot and not passed in event, prefer snapshot.ai_result
+        if (!variables.ai_result && snapshot?.ai_result) {
+          variables.ai_result = String(snapshot.ai_result)
+        }
+
+        // Compute a top_category fallback if not present
+        if (!variables.category || variables.category === 'Alapszintű') {
+          const totalScore = Object.values(scoresObj || {}).reduce((s: number, v: any) => s + (Number(v) || 0), 0)
+          const possible = Math.max(1, Object.keys(answers || {}).length * 5)
+          const pct = Math.round((totalScore / possible) * 100)
+          let top = 'Alacsony'
+          if (pct > 60) top = 'Magas'
+          else if (pct > 30) top = 'Közepes'
+          variables.top_category = top
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('prepareEmailAnalysisVariables: late enrichment failed', e)
+  }
+
+  // Generate comprehensive textual evaluation
+  const textualEvaluation = generateTextualEvaluation(variables)
+
+  // Build final analysis_html: prefer comprehensive evaluation, fallback to AI HTML, append score summary
+  const escapeHtml = (input?: string) => (input ? String(input).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '')
+  
+  // Check if AI result contains obviously wrong data (like "0 pont" when score is > 0)
+  const aiHtml = variables.ai_result ? (String(variables.ai_result).startsWith('<') ? String(variables.ai_result) : markdownToHtml(String(variables.ai_result))) : ''
+  const hasWrongAiData = aiHtml && variables.score && Number(variables.score) > 0 && aiHtml.includes('0 pont')
+  
+  const scoreDescParts: string[] = []
+  if (variables.category) scoreDescParts.push(variables.category)
+  if (variables.score) scoreDescParts.push(`Pontszám: ${variables.score}`)
+  if (variables.percentage) scoreDescParts.push(`(${variables.percentage}%)`)
+  const scoreSummary = scoreDescParts.join(' | ')
+
+  variables.ai_html = aiHtml
+  
+  // Use textual evaluation if AI is wrong/missing, otherwise combine AI with score summary
+  if (hasWrongAiData || !aiHtml) {
+    variables.analysis_html = textualEvaluation
+  } else {
+    variables.analysis_html = `${aiHtml}${scoreSummary ? `<hr/><div class="score-summary">${escapeHtml(scoreSummary)}</div>` : ''}`
+  }
+
+  // Also provide the textual evaluation as a separate variable
+  variables.textual_evaluation = textualEvaluation
+
+  // Merge metadata into variables (preserve existing keys)
+  if (event.metadata) {
+    Object.entries(event.metadata).forEach(([k, v]) => {
+      if (!(k in variables)) variables[k] = v
+    })
+  }
+
+  return variables
+}
+
+// Generate comprehensive textual evaluation based on score and category
+function generateTextualEvaluation(variables: Record<string, any>): string {
+  const score = Number(variables.score) || 0
+  const percentage = Number(variables.percentage) || 0
+  const category = variables.category || 'Alapszintű'
+  const scoresObj = variables.scores || {}
+  
+  // Use the description from scoring rules if available
+  if (scoresObj.description && typeof scoresObj.description === 'string' && !scoresObj.description.includes('0 pont')) {
+    return `<div class="evaluation-content">
+      <h3>Az Ön eredménye</h3>
+      <div class="score-header">
+        <strong>${category}</strong> | Pontszám: ${score} (${percentage}%)
+      </div>
+      <div class="detailed-analysis">
+        ${escapeHtmlForEvaluation(String(scoresObj.description).replace(/^[^|]*\|/, '').trim())}
+      </div>
+    </div>`
+  }
+  
+  // Generate evaluation based on category and score
+  let evaluationText = ''
+  let recommendations = ''
+  
+  if (category.includes('Magas') || score > 30) {
+    evaluationText = 'Az eredmények alapján érdemes szakemberrel konzultálni a további lépésekről. A magasabb pontszám azt jelzi, hogy több területen is megjelenhetnek olyan tünetek, amelyek befolyásolhatják a mindennapokat.'
+    recommendations = 'Javasoljuk, hogy keressen fel egy szakembert (háziorvos, pszichiáter, pszichológus), aki részletes felmérést végezhet és segíthet a megfelelő támogatás megtalálásában.'
+  } else if (category.includes('Közepes') || score > 15) {
+    evaluationText = 'Az eredmények vegyes képet mutatnak. Néhány területen megjelenhetnek olyan jellemzők, amelyek időnként kihívást jelenthetnek, de ezek még nem feltétlenül utalnak komoly problémákra.'
+    recommendations = 'Érdemes odafigyelni ezekre a területekre és megfigyelni, hogy mennyire befolyásolják a mindennapokat. Ha úgy érzi, hogy ezek a jellemzők rendszeresen nehézséget okoznak, érdemes szakemberrel konzultálni.'
+  } else {
+    evaluationText = 'Az eredmények alapján a legtöbb területen nem mutatkoznak jelentős nehézségek. Ez pozitív jel, de fontos tudni, hogy minden ember más, és az eredmény csak egy pillanatképet ad.'
+    recommendations = 'Amennyiben a jövőben változást észlel a figyelem, koncentráció vagy szervezés terén, ne habozzon szakemberhez fordulni tanácsért.'
+  }
+  
+  return `<div class="evaluation-content">
+    <h3>Az Ön eredménye</h3>
+    <div class="score-header">
+      <strong>${category}</strong> | Pontszám: ${score} (${percentage}%)
+    </div>
+    <div class="detailed-analysis">
+      <p><strong>Értékelés:</strong> ${evaluationText}</p>
+      <p><strong>Ajánlások:</strong> ${recommendations}</p>
+      <p><em>Fontos:</em> Ez az értékelés csak tájékoztató jellegű, nem helyettesíti a szakorvosi diagnózist.</p>
+    </div>
+  </div>`
+}
+
+function escapeHtmlForEvaluation(input?: string): string {
+  if (!input) return ''
+  return String(input)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export class EmailAutomationTrigger {
   private supabase = getSupabaseAdmin()
 
@@ -248,8 +439,9 @@ export class EmailAutomationTrigger {
     }
 
     // Prepare email variables
-    console.log('Before prepareVariables - event:', JSON.stringify({ ...event, user_email: enrichedEmail || event.user_email, user_name: enrichedName || event.user_name }, null, 2))
-    const baseVars = this.prepareVariables({ ...event, user_email: enrichedEmail || event.user_email, user_name: enrichedName || event.user_name }, rule)
+  console.log('Before prepareVariables - event:', JSON.stringify({ ...event, user_email: enrichedEmail || event.user_email, user_name: enrichedName || event.user_name }, null, 2))
+  // prepareVariables may do lightweight work but also supports late enrichment from DB
+  const baseVars = await this.prepareVariables({ ...event, user_email: enrichedEmail || event.user_email, user_name: enrichedName || event.user_name }, rule)
     const variables = {
       ...baseVars,
       ...(productName ? { product_name: productName } : {}),
@@ -257,23 +449,53 @@ export class EmailAutomationTrigger {
     }
     console.log('After prepareVariables - variables:', variables)
 
-  // Queue the email (only include columns guaranteed by current schema)
-  // Render template body: prefer HTML template; fallback to markdown converted to HTML
-  const rawBodyTemplate = rule.email_templates.body_html || rule.email_templates.body_markdown || ''
-  const renderedBody = this.processTemplate(rawBodyTemplate, variables)
-  const bodyHtmlFinal = rule.email_templates.body_html
-    ? renderedBody
-    : markdownToHtml(renderedBody)
+    // Validate template tokens before queuing to avoid silent validation failures later
+    const subjectTemplate = rule.email_templates.subject_template || ''
+    const rawBodyTemplate = rule.email_templates.body_html || rule.email_templates.body_markdown || ''
 
-  const { error: queueError } = await this.supabase
+    const missingInSubject = this.validateTemplateVariables(subjectTemplate, variables)
+    const missingInBody = this.validateTemplateVariables(rawBodyTemplate, variables)
+    const missingAll = Array.from(new Set([...missingInSubject, ...missingInBody]))
+
+    if (missingAll.length > 0) {
+      // Insert a failed queue item with clear validation message for visibility and manual remediation
+      const errMsg = `VALIDATION_ERROR missing: ${missingAll.join(',')}`
+      console.warn(`Template validation failed for rule ${rule.id}:`, errMsg)
+      const { error: failErr } = await this.supabase.from('email_queue').insert({
+        session_id: event.metadata?.session_id || null,
+        template_id: rule.email_template_id,
+        automation_rule_id: rule.id,
+        recipient_email: enrichedEmail || event.user_email,
+        recipient_name: enrichedName || event.user_name,
+        subject: this.processTemplate(subjectTemplate, variables),
+        body_html: '',
+        body_markdown: rule.email_templates.body_markdown,
+        variables_used: variables,
+        scheduled_at: scheduledAt.toISOString(),
+        status: 'failed',
+        error_message: errMsg
+      })
+      if (failErr) {
+        console.error('Error inserting validation-failed queue item:', failErr)
+      }
+      return
+    }
+
+    // Render template body: prefer HTML template; fallback to markdown converted to HTML
+    const renderedBody = this.processTemplate(rawBodyTemplate, variables)
+    const bodyHtmlFinal = rule.email_templates.body_html
+      ? renderedBody
+      : markdownToHtml(renderedBody)
+
+    const { error: queueError } = await this.supabase
       .from('email_queue')
       .insert({
         session_id: event.metadata?.session_id || null,
         template_id: rule.email_template_id,
         automation_rule_id: rule.id,
-    recipient_email: enrichedEmail || event.user_email,
-    recipient_name: enrichedName || event.user_name,
-        subject: this.processTemplate(rule.email_templates.subject_template, variables),
+        recipient_email: enrichedEmail || event.user_email,
+        recipient_name: enrichedName || event.user_name,
+        subject: this.processTemplate(subjectTemplate, variables),
         body_html: bodyHtmlFinal,
         body_markdown: rule.email_templates.body_markdown,
         variables_used: variables,
@@ -364,69 +586,13 @@ export class EmailAutomationTrigger {
     return (count || 0) >= rule.max_sends
   }
 
-  private prepareVariables(event: EmailTriggerEvent, rule: any): Record<string, any> {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://quizapp.hu'
-    
-    const variables: Record<string, any> = {
-      user_name: event.user_name || 'Értékes Ügyfél',
-      user_email: event.user_email,
-  quiz_id: event.quiz_id,
-      quiz_completion_date: new Date().toLocaleDateString('hu-HU'),
-      support_email: process.env.SUPPORT_EMAIL || 'support@quizapp.hu',
-      company_name: 'Quiz Platform',
-      quiz_title: 'ADHD Gyorsteszt', // Default quiz title
-      percentage: '0',
-      score: '0',
-      category: 'Alapszintű',
-      // URL variables
-      result_url: `${baseUrl}/results?session=${event.metadata?.session_id || ''}`,
-      booking_url: `${baseUrl}/booking?quiz=${event.quiz_id}`,
-  download_url: `${baseUrl}/downloads?quiz=${event.quiz_id}&result=${event.metadata?.session_id || ''}`,
-  unsubscribe_url: `${baseUrl}/unsubscribe`
-    }
+  private async prepareVariables(event: EmailTriggerEvent, rule: any): Promise<Record<string, any>> {
 
-    // Add quiz result data
-    console.log('PrepareVariables - event.quiz_result:', JSON.stringify(event.quiz_result, null, 2))
-    if (event.quiz_result) {
-      console.log('PrepareVariables - processing quiz_result data')
-      variables.quiz_result_percentage = event.quiz_result.percentage.toString()
-      variables.percentage = event.quiz_result.percentage.toString()
-      // Calculate actual score from percentage (assuming max score is based on number of questions)
-      const maxScore = 20 // Assuming 20 questions max
-      const actualScore = Math.round((event.quiz_result.percentage / 100) * maxScore)
-      variables.score = actualScore.toString()
-      variables.quiz_result_text = event.quiz_result.text
-      variables.category = event.quiz_result.text || 'Alapszintű'
-      if (event.quiz_result.ai_result) {
-        variables.ai_result = event.quiz_result.ai_result
-      }
-      console.log('PrepareVariables - Final variables:', {
-        percentage: variables.percentage,
-        score: variables.score, 
-        category: variables.category
-      })
-    } else {
-      console.log('PrepareVariables - no quiz_result data found')
-    }
 
-    // Add order/product data
-    if (event.order_id) {
-      variables.order_id = event.order_id
-    }
 
-    if (event.product_id) {
-      variables.product_id = event.product_id
-      // TODO: Fetch product details from database
-    }
 
-    // Add metadata
-    if (event.metadata) {
-      Object.entries(event.metadata).forEach(([key, value]) => {
-        variables[key] = value
-      })
-    }
 
-    return variables
+  return await prepareEmailAnalysisVariables(event, this.supabase, rule)
   }
 
   private processTemplate(template: string, variables: Record<string, any>): string {
@@ -440,6 +606,62 @@ export class EmailAutomationTrigger {
     })
     
     return processed
+  }
+
+  // Extract tokens like {{var}} or {{nested.path}} from a template string
+  private extractTemplateTokens(template: string): string[] {
+    const re = /{{\s*([^{}\s]+)\s*}}/g
+    const set = new Set<string>()
+    let m: RegExpExecArray | null
+    while ((m = re.exec(template))) {
+      if (m[1]) set.add(m[1])
+    }
+    return Array.from(set)
+  }
+
+  // Resolve a token path against the variables object. Supports dot-paths and array indexes.
+  // Special-case: tokens starting with `this.` are considered satisfied if `qa_pairs` exists (templating loop context).
+  private resolveVariableValue(variables: Record<string, any>, token: string): any {
+    if (!token) return undefined
+
+    // handle 'this.xxx' tokens used inside template loops
+    if (token.startsWith('this.')) {
+      const rest = token.slice(5)
+      if (Array.isArray(variables.qa_pairs) && variables.qa_pairs.length > 0) {
+        // return first item's property as an existence check
+        return (variables.qa_pairs[0] as any)[rest]
+      }
+      return undefined
+    }
+
+    const parts = token.split('.')
+    let cur: any = variables
+    for (const p of parts) {
+      if (cur == null) return undefined
+      // numeric index for arrays
+      if (Array.isArray(cur)) {
+        const idx = Number(p)
+        if (!Number.isFinite(idx)) return undefined
+        cur = cur[idx]
+      } else {
+        cur = cur[p]
+      }
+    }
+    return cur
+  }
+
+  // Validate that all tokens found in a template are resolvable from variables.
+  // Returns array of missing tokens (empty = ok).
+  private validateTemplateVariables(template: string, variables: Record<string, any>): string[] {
+    const tokens = this.extractTemplateTokens(template || '')
+    const missing: string[] = []
+    for (const t of tokens) {
+      const val = this.resolveVariableValue(variables, t)
+      if (val === undefined || val === null) {
+        missing.push(t)
+      }
+    }
+    return missing
   }
 
   // Helper method to trigger quiz completion emails

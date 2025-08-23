@@ -2,8 +2,18 @@ import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Quiz Platform',
-  description: 'Multi-language quiz platform with AI-powered results',
+  title: 'Tools - Szabó Suti László',
+  description: 'Ingyenes online eszközök és tesztek tudományos megalapozottsággal. ADHD gyorsteszt, személyiség felmérések és egyéb hasznos tools.',
+  keywords: 'ADHD teszt, online felmérés, pszichológiai teszt, személyiség teszt, ingyenes tools',
+  authors: [{ name: 'Szabó Suti László' }],
+  viewport: 'width=device-width, initial-scale=1',
+  robots: 'index, follow',
+  openGraph: {
+    title: 'Tools - Szabó Suti László',
+    description: 'Ingyenes online eszközök és tesztek tudományos megalapozottsággal.',
+    type: 'website',
+    url: 'https://szabosutilaszlo.com/tools/',
+  }
 };
 
 export default function RootLayout({
@@ -12,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="hu">
       <body>{children}</body>
     </html>
   );

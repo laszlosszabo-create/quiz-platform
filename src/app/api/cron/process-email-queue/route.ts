@@ -266,6 +266,37 @@ function processTemplate(template: any, variables: Record<string, unknown>) {
   return { subject, htmlContent }
 }
 
+// Expand simple Handlebars-like {{#each collection}}...{{/each}} and {{#if var}}...{{else}}...{{/if}}
+function renderEachBlocks(content: string, variables: Record<string, unknown>) {
+  return content.replace(/{{#each\s+([a-zA-Z0-9_\.]+)}}([\s\S]*?){{\/each}}/g, (_match, collName, inner) => {
+    const coll = (variables as any)[collName]
+    if (!Array.isArray(coll) || coll.length === 0) return ''
+    // For each item, replace {{this.prop}} inside inner template
+    return coll
+      .map((item: any) => {
+        return inner.replace(/{{\s*this\.([a-zA-Z0-9_\.]+)\s*}}/g, (_m2: string, propPath: string) => {
+          const v = item && typeof item === 'object' ? (item[propPath] ?? '') : ''
+          return String(v)
+        })
+      })
+      .join('\n')
+  })
+}
+
+function renderIfBlocks(content: string, variables: Record<string, unknown>) {
+  // with else
+  content = content.replace(/{{#if\s+([a-zA-Z0-9_\.]+)}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/g, (_m, varName, truthy, falsy) => {
+    const v = (variables as any)[varName]
+    return v ? truthy : falsy
+  })
+  // without else
+  content = content.replace(/{{#if\s+([a-zA-Z0-9_\.]+)}}([\s\S]*?){{\/if}}/g, (_m, varName, truthy) => {
+    const v = (variables as any)[varName]
+    return v ? truthy : ''
+  })
+  return content
+}
+
 function extractRequiredVariablesFromTemplate(template: any): string[] {
   const subject = (template?.subject_template as string) || ''
   const body = ((template?.body_html as string) || (template?.body_markdown as string) || '') as string
@@ -280,7 +311,16 @@ function extractRequiredVariablesFromTemplate(template: any): string[] {
 
 function processTemplateWithValidation(template: any, variables: Record<string, unknown>): { subject: string; htmlContent: string; missing: string[] } {
   // Előbb rendereljük a sablont (default + user változók felhasználásával)
-  const { subject, htmlContent } = processTemplate(template, variables)
+  // First expand simple blocks so `this.*` tokens and conditional sections are materialized
+  let rawHtml = (template?.body_html as string) || (template?.body_markdown as string) || ''
+  rawHtml = renderEachBlocks(rawHtml, variables)
+  rawHtml = renderIfBlocks(rawHtml, variables)
+
+  // subject can also include if/each but usually simple tokens; expand as well
+  let rawSubject = (template?.subject_template as string) || ''
+  rawSubject = renderIfBlocks(renderEachBlocks(rawSubject, variables), variables)
+
+  const { subject, htmlContent } = processTemplate({ subject_template: rawSubject, body_html: rawHtml }, variables)
   // Ezután keressük meg a megmaradt placeholdereket; ezek a ténylegesen hiányzók
   const unresolved = extractRequiredVariablesFromTemplate({ subject_template: subject, body_html: htmlContent })
   return { subject, htmlContent, missing: unresolved }

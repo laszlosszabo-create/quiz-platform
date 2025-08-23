@@ -1,0 +1,39 @@
+# Hostinger Deployment - Apache Configuration
+RewriteEngine On
+
+# Security headers
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set X-Content-Type-Options "nosniff"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# Cache static assets
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+    ExpiresActive On
+    ExpiresDefault "access plus 1 year"
+    Header append Cache-Control "public, immutable"
+</FilesMatch>
+
+# Clean URLs for ADHD quiz
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^hu/adhd-quick-check/?$ /tools/hu/adhd-quick-check/index.html [L]
+
+# Handle other Hungarian pages
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^hu/(.*)$ /tools/hu/$1 [L]
+
+# Default to tools index for everything else
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /tools/index.html [L]
+
+# Block access to sensitive files
+<Files ~ "^\.(env|git|htaccess|htpasswd)">
+    Require all denied
+</Files>
+
+# Block access to source code and config files
+<FilesMatch "\.(ts|tsx|js\.map|css\.map)$">
+    Require all denied
+</FilesMatch>

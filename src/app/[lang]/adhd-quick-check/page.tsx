@@ -8,7 +8,7 @@ import { getTranslation } from '@/lib/translations'
 const QUIZ_SLUG = 'adhd-quick-check'
 
 // SEO metadata from translations
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params }: { params: any }) {
   const { lang } = typeof params?.then === 'function' ? await params : params || { lang: 'hu' }
   const supabase = getSupabaseAdmin()
   const { data: quiz } = await supabase
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }) {
   }
 }
 
-export default async function Page({ params }) {
+export default async function Page({ params }: { params: any }) {
   // Next.js 15: params lehet Promise
   const { lang } = typeof params?.then === 'function' ? await params : params || { lang: 'hu' }
 
@@ -63,7 +63,7 @@ export default async function Page({ params }) {
     .select('*')
     .eq('quiz_id', quiz.id)
 
-  const t = (key, fallback = '') =>
+  const t = (key: string, fallback = '') =>
     getTranslation(allTranslations || [], lang, key, quiz.default_lang) || fallback
 
   const quizId = quiz.id

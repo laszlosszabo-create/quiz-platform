@@ -3,21 +3,21 @@ const nextConfig = {
   // App Router is default in Next.js 15
   
   // Production deployment under /tools/ subpath
-  basePath: process.env.NODE_ENV === 'production' ? '/tools' : '',
+  basePath: '/tools',
   
   // Ensure trailing slash for consistent routing
   trailingSlash: true,
   
   // Asset prefix for static files in production
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/tools' : '',
+  assetPrefix: '/tools',
   
-  // Static export for shared hosting deployment
-  output: process.env.STATIC_EXPORT === 'true' ? 'export' : undefined,
+  // Static export configuration
+  output: 'export',
   
-  // Unoptimized images for static export
-  images: process.env.STATIC_EXPORT === 'true' ? {
+  // Skip API routes and server-only features for static export
+  images: {
     unoptimized: true
-  } : undefined,
+  },
   
   webpack: (config, { dev }) => {
     // Disable webpack filesystem cache in dev to avoid stale pack.gz ENOENT issues

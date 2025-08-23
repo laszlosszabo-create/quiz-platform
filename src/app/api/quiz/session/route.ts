@@ -11,8 +11,11 @@ const updateSessionSchema = z.object({
   session_id: z.string().uuid(),
   answers: z.record(z.any()).optional(),
   current_question: z.number().optional(),
-  email: z.string().email().optional(),
-  state: z.enum(['started', 'completed']).optional()
+  email: z.string().email().optional(), // legacy
+  user_email: z.string().email().optional(),
+  user_name: z.string().min(1).max(200).optional(),
+  state: z.enum(['started', 'completed']).optional(),
+  scores: z.record(z.any()).optional() // NEW: Support scores field update
 })
 
 export async function POST(request: Request) {
@@ -99,7 +102,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const validatedData = updateSessionSchema.parse(body)
 
-    const updateData: any = {}
+  const updateData: any = {}
     
     if (validatedData.answers !== undefined) {
       updateData.answers = validatedData.answers
@@ -107,6 +110,21 @@ export async function PATCH(request: NextRequest) {
     
     if (validatedData.state !== undefined) {
       updateData.state = validatedData.state
+    }
+    
+    // NEW: Support scores field update
+    if (validatedData.scores !== undefined) {
+      updateData.scores = validatedData.scores
+    }
+    
+    // Normalize email fields: prefer user_email, fallback to email
+    if (validatedData.user_email) {
+      updateData.user_email = validatedData.user_email
+    } else if (validatedData.email) {
+      updateData.user_email = validatedData.email
+    }
+    if (validatedData.user_name) {
+      updateData.user_name = validatedData.user_name
     }
 
     // Update session
@@ -127,7 +145,11 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       session_id: session.id,
-      message: 'Session updated successfully'
+      message: 'Session updated successfully',
+      persisted: {
+        user_email: session.user_email || null,
+        user_name: session.user_name || null
+      }
     })
   } catch (error) {
     console.error('Session API error:', error)

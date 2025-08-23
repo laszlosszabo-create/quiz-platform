@@ -44,6 +44,13 @@ export function ResultClient({
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null)
+  // ÚJ: felhasználói név + email biztos rögzítése a session-be (szigorítás támogatása)
+  const [userNameInput, setUserNameInput] = useState('')
+  const [userEmailInput, setUserEmailInput] = useState('')
+  const [identitySaving, setIdentitySaving] = useState(false)
+  const [identityError, setIdentityError] = useState<string | null>(null)
+  const hasIdentity = Boolean((session as any).user_email || (session as any).userName || (session as any).user_name || (session as any).email)
+  const [needsIdentity, setNeedsIdentity] = useState(!hasIdentity)
 
   // Check payment status from URL params
   useEffect(() => {
@@ -78,27 +85,57 @@ export function ResultClient({
 
   // Calculate scores and get result
   useEffect(() => {
+    // Mindig számoljuk ki a pontszámot (nem függ az emailtől)
     calculateScores()
-    
-    // Check analysis type setting and generate AI result if needed
-    const analysisType = featureFlags.result_analysis_type || 'both' // 'score', 'ai', or 'both'
-    
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Amint megvan az identity (email), indulhat az AI / email logika
+  useEffect(() => {
+    if (needsIdentity) return
+    const analysisType = featureFlags.result_analysis_type || 'both'
+    const snapshot = session.result_snapshot as any
     if (analysisType === 'ai' || analysisType === 'both') {
-      const snapshot = session.result_snapshot as any
       const hasAiResult = snapshot?.ai_result
-      
       if (!hasAiResult) {
         generateAIResult()
       } else {
         setAiResult(snapshot.ai_result)
-        // If AI result is already cached, we still need to trigger email automation
         triggerEmailAutomation()
       }
     } else {
-      // If using score-only mode, we still need to trigger email automation
       triggerEmailAutomation()
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsIdentity])
+
+  const persistIdentity = async () => {
+    setIdentityError(null)
+    if (!userNameInput.trim() || !userEmailInput.trim()) {
+      setIdentityError('A név és email kötelező.')
+      return
+    }
+    setIdentitySaving(true)
+    try {
+      const res = await fetch('/api/quiz/session', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: session.id, user_email: userEmailInput.trim(), user_name: userNameInput.trim() })
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(()=>({}))
+        throw new Error(data?.error || 'Mentés sikertelen')
+      }
+      // Lokális session objektum frissítése
+      ;(session as any).user_email = userEmailInput.trim()
+      ;(session as any).user_name = userNameInput.trim()
+      setNeedsIdentity(false)
+    } catch (e:any) {
+      setIdentityError(e.message || 'Mentés hiba')
+    } finally {
+      setIdentitySaving(false)
+    }
+  }
 
   const calculateScores = () => {
     const answers = session.answers as Record<string, any> || {}
@@ -133,32 +170,42 @@ export function ResultClient({
     let description = `Your score is ${totalScore}`
     
     if (scoringRules && scoringRules.length > 0) {
-      // Use the first scoring rule (admin-configured)
-      const rule = scoringRules[0]
-      const weights = rule.weights as any || {}
+      // FIXED: Find the appropriate scoring rule based on totalScore, not just the first one
+      const applicableRule = scoringRules
+        .sort((a, b) => (b.weights as any).min_score - (a.weights as any).min_score) // Sort by min_score descending
+        .find(rule => {
+          const weights = rule.weights as any || {}
+          const minScore = weights.min_score || 0
+          const maxScore = weights.max_score || 100
+          return totalScore >= minScore && totalScore <= maxScore
+        })
       
-      // Determine category based on admin-configured thresholds
-      const threshold = weights.threshold || 50
-      const minScore = weights.min_score || 0
-      const maxScore = weights.max_score || 100
-      
-      // Calculate score percentage for more flexible categorization
-      const scorePercentage = ((totalScore - minScore) / (maxScore - minScore)) * 100
-      
-      if (scorePercentage >= threshold) {
-        category = 'high'
-      } else if (scorePercentage >= threshold * 0.6) { // 60% of threshold for medium
-        category = 'medium'
-      } else {
-        category = 'low'
-      }
-      
-      // Use admin-configured result template if available
-      if (weights.result_template) {
-        description = weights.result_template
-          .replace('{score}', totalScore.toString())
-          .replace('{category}', weights.category || category)
-          .replace('{percentage}', Math.round(scorePercentage).toString())
+      if (applicableRule) {
+        const weights = applicableRule.weights as any || {}
+        
+        // Map the admin category to our internal category types
+        const adminCategory = weights.category || 'Alacsony valószínűség'
+        if (adminCategory.includes('Magas')) {
+          category = 'high'
+        } else if (adminCategory.includes('Közepes')) {
+          category = 'medium'
+        } else {
+          category = 'low'
+        }
+        
+        // Calculate score percentage for the template
+        const minScore = weights.min_score || 0
+        const maxScore = weights.max_score || 100
+        const scorePercentage = maxScore > minScore ? 
+          Math.round(((totalScore - minScore) / (maxScore - minScore)) * 100) : 0
+        
+        // Use admin-configured result template if available
+        if (weights.result_template) {
+          description = weights.result_template
+            .replace('{score}', totalScore.toString())
+            .replace('{category}', weights.category || category)
+            .replace('{percentage}', scorePercentage.toString())
+        }
       }
     } else {
       // Fallback to hardcoded logic if no scoring rules configured
@@ -191,6 +238,32 @@ export function ResultClient({
       category,
       description
     })
+
+    // CRITICAL FIX: Save calculated scores to session in database
+    // Ez magyarázza miért volt üres a session.scores és miért nem működött a kategóriázás
+    const scoresData = {
+      total: totalScore,
+      totalScore,
+      category,
+      description,
+      answers: Object.keys(session.answers || {}).length,
+      calculatedAt: new Date().toISOString()
+    }
+
+    // Update session.scores in database
+    fetch('/api/quiz/session', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        session_id: session.id, 
+        scores: scoresData 
+      })
+    }).catch(err => {
+      console.warn('Failed to save scores to database:', err)
+    })
+
+    // Update local session object to reflect database state
+    ;(session as any).scores = scoresData
   }
 
   const generateAIResult = async () => {
@@ -222,15 +295,22 @@ export function ResultClient({
             generated_at: new Date().toISOString()
           } as any
         }
+    // Sikeres AI -> email szerver oldalon amúgy is triggelődik, de ha valamiért nem, fallback
+    triggerEmailAutomation()
       } else {
         if (response.status === 400) {
           setAiNotice('Az AI eredmény generálása nem elérhető ehhez a nyelvhez, mert nincs konfigurált AI prompt. A statikus eredmény kerül megjelenítésre.')
         } else {
           setAiNotice('Az AI eredmény generálása sikertelen. A statikus eredmény kerül megjelenítésre.')
         }
+    // FONTOS: korábban ilyenkor nem futott le az email küldés (analysisType === 'both' esetén), ez okozta a hiányzó emaileket.
+    // Ha az AI nem sikerült, indítsuk el a score-only email automatizmust.
+    triggerEmailAutomation()
       }
     } catch (error) {
       setAiNotice('Az AI eredmény generálása nem érhető el. A statikus eredmény kerül megjelenítésre.')
+    // Hibás AI generálás esetén is küldjünk eredmény emailt (score-only fallback)
+    triggerEmailAutomation()
     } finally {
       setIsLoadingAI(false)
     }
@@ -375,7 +455,53 @@ export function ResultClient({
         </div>
       </header>
 
+      {needsIdentity && (
+        <div className="max-w-xl mx-auto mt-10 bg-white rounded-3xl shadow-lg p-8 border border-gray-100">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900">Add meg az adataid az eredmény e-mailhez</h2>
+          <p className="text-gray-600 mb-6">Az e-mail küldés csak akkor indul el, ha megadod a neved és az e-mail címed.</p>
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Név</label>
+              <input
+                type="text"
+                value={userNameInput}
+                onChange={e => setUserNameInput(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Teljes név"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+              <input
+                type="email"
+                value={userEmailInput}
+                onChange={e => setUserEmailInput(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="nev@pelda.hu"
+              />
+            </div>
+            {identityError && <div className="text-sm text-red-600">{identityError}</div>}
+            <button
+              onClick={persistIdentity}
+              disabled={identitySaving}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold px-6 py-3 rounded-xl shadow transition"
+            >
+              {identitySaving ? 'Mentés...' : 'Mentés és Folytatás'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="px-4 py-8 relative">
+        {needsIdentity && (
+          <div className="max-w-3xl mx-auto mb-8">
+            <Alert className="bg-amber-50 border-amber-200 text-amber-900 rounded-2xl shadow-sm">
+              <AlertDescription>
+                Add meg az adataid, hogy megkapd az e-mailes összefoglalót és az AI / pont alapú elemzést.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         {paymentSuccess && (
           <div className="max-w-4xl mx-auto mb-6">
             <Alert className="bg-green-50 border-green-200 text-green-900 rounded-2xl shadow-sm">

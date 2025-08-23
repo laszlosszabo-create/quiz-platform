@@ -1,0 +1,2 @@
+# Ez a favicon placeholder - cseréld le saját ikonra
+# /tools/favicon.ico

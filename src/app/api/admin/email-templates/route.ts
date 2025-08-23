@@ -23,14 +23,15 @@ const getTemplatesSchema = z.object({
 
 const createTemplateSchema = z.object({
   quiz_id: z.string().uuid(),
-  product_id: z.string().optional(),
+  product_id: z.string().optional().nullable(),
   template_type: z.enum(['result', 'purchase', 'reminder', 'custom']),
   lang: z.string().min(2).max(5).default('hu'),
   template_name: z.string().min(1),
   subject_template: z.string().min(1),
   body_markdown: z.string().min(1),
   body_html: z.string().optional(),
-  variables: z.record(z.string()).optional().default({}),
+  // variables may contain strings, numbers, arrays or nested objects edited by admins
+  variables: z.record(z.any()).optional().default({}),
   is_active: z.boolean().default(true)
 })
 

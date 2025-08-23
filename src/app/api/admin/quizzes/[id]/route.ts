@@ -142,11 +142,38 @@ export async function PUT(
         }
       }
       if (rows.length > 0) {
-        const { error: trError } = await supabase
+        // To avoid duplicate-key race/constraint issues with bulk upserts,
+        // first delete any existing translations for the same quiz/lang/field_key
+        // then insert the new rows. This is more reliable for bulk updates.
+        const rowsByLang: Record<string, string[]> = rows.reduce((acc, r) => {
+          acc[r.lang] = acc[r.lang] || []
+          acc[r.lang].push(r.field_key)
+          return acc
+        }, {} as Record<string, string[]>)
+
+        for (const [lang, keys] of Object.entries(rowsByLang)) {
+          const { error: delErr } = await supabase
+            .from('quiz_translations')
+            .delete()
+            .eq('quiz_id', id)
+            .eq('lang', lang)
+            .in('field_key', keys)
+
+          if (delErr) {
+            console.error('Error deleting existing translations before insert:', delErr)
+            return NextResponse.json(
+              { error: 'Failed to update translations' },
+              { status: 500 }
+            )
+          }
+        }
+
+        const { error: insertErr } = await supabase
           .from('quiz_translations')
-          .upsert(rows, { onConflict: 'quiz_id,lang,field_key' })
-        if (trError) {
-          console.error('Error upserting translations:', trError)
+          .insert(rows)
+
+        if (insertErr) {
+          console.error('Error inserting translations:', insertErr)
           return NextResponse.json(
             { error: 'Failed to update translations' },
             { status: 500 }
