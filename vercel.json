@@ -2,10 +2,6 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/tools/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
       "source": "/tools/((?!api|_next|favicon.ico|robots.txt).*)",
       "destination": "/$1"
     },
