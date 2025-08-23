@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: 'Tools - Szabó Suti László',
     description: 'Ingyenes online eszközök és tesztek tudományos megalapozottsággal.',
     type: 'website',
-    url: 'https://szabosutilaszlo.com/tools/',
+  url: 'https://tools.szabosutilaszlo.com/',
   }
 };
 
