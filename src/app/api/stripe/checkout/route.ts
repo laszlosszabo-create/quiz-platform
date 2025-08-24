@@ -92,6 +92,11 @@ export async function POST(request: NextRequest) {
     if (!baseUrl || baseUrl.includes('localhost')) {
       baseUrl = 'http://localhost:3000'  // Development fallback
     }
+    
+    // Production fix: ensure we use tools subdomain
+    if (baseUrl && baseUrl.includes('szabosutilaszlo.com') && !baseUrl.includes('tools.')) {
+      baseUrl = baseUrl.replace('szabosutilaszlo.com', 'tools.szabosutilaszlo.com')
+    }
 
     console.log('Stripe checkout redirect base URL:', baseUrl)
 
