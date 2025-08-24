@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Question, Answer } from '@/lib/types'
 import { EventTracker } from '@/lib/tracking'
 import { apiFetch } from '@/lib/api-utils'
 import { Quiz, QuizQuestion, QuizTranslation } from '@/types/database'
@@ -20,7 +19,7 @@ interface QuizClientProps {
   lang: string
 }
 
-interface Answer {
+interface QuizAnswer {
   questionKey: string
   value: string | string[]
 }
@@ -34,7 +33,7 @@ export function QuizClient({
   lang
 }: QuizClientProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [answers, setAnswers] = useState<Answer[]>([])
+  const [answers, setAnswers] = useState<QuizAnswer[]>([])
   const [sessionId, setSessionId] = useState<string>('')
   const [showEmailGate, setShowEmailGate] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
@@ -145,7 +144,7 @@ export function QuizClient({
     await completeQuiz(answers)
   }
 
-  const completeQuiz = async (finalAnswers: Answer[]) => {
+  const completeQuiz = async (finalAnswers: QuizAnswer[]) => {
     if (!sessionId) return
 
     try {
