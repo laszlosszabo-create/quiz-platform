@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         default_lang: quiz.default_lang,
         created_at: quiz.created_at,
         updated_at: quiz.updated_at,
+        name: translations[quiz.default_lang]?.title || translations.hu?.title || translations.en?.title || `Quiz ${quiz.slug}`,
         translations
       }
     })

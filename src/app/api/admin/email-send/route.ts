@@ -23,12 +23,14 @@ const testEmailSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const action = searchParams.get('action') // 'send' or 'test'
+    const action = searchParams.get('action') // 'send', 'test', or 'force_send'
     
     const body = await request.json()
 
     if (action === 'test') {
       return await handleTestEmail(body)
+    } else if (action === 'force_send') {
+      return await handleForceSend(body)
     } else {
       return await handleSendEmail(body)
     }
@@ -304,5 +306,141 @@ async function processEmailQueue(queueItemId: string) {
       .eq('id', queueItemId)
 
     throw error
+  }
+}
+
+// Force send a queued email
+async function handleForceSend(body: any) {
+  const { queue_id } = body
+  
+  if (!queue_id) {
+    return NextResponse.json(
+      { error: 'queue_id is required' },
+      { status: 400 }
+    )
+  }
+
+  const supabase = getSupabaseAdmin()
+
+  try {
+    // Get queue item
+    const { data: queueItem, error: queueError } = await supabase
+      .from('email_queue')
+      .select(`
+        *,
+        email_templates (
+          id,
+          template_name,
+          subject_template,
+          body_html,
+          body_markdown
+        )
+      `)
+      .eq('id', queue_id)
+      .single()
+
+    if (queueError || !queueItem) {
+      return NextResponse.json(
+        { error: 'Queue item not found' },
+        { status: 404 }
+      )
+    }
+
+    if (queueItem.status === 'sent') {
+      return NextResponse.json(
+        { error: 'Email already sent' },
+        { status: 400 }
+      )
+    }
+
+    if (!queueItem.recipient_email) {
+      return NextResponse.json(
+        { error: 'No recipient email' },
+        { status: 400 }
+      )
+    }
+
+    // Update status to processing
+    await supabase
+      .from('email_queue')
+      .update({ status: 'processing' })
+      .eq('id', queue_id)
+
+    // Process template variables if needed
+    const variables = queueItem.variables_used || {}
+    const template = queueItem.email_templates
+    
+    let subject = queueItem.subject
+    let htmlContent = queueItem.body_html
+
+    // If we don't have processed content, process it now
+    if (!htmlContent && template) {
+      const processed = await processTemplate(template, variables, supabase)
+      subject = processed.subject
+      htmlContent = processed.htmlContent
+    }
+
+    // Send email via Resend
+    const result = await resend.emails.send({
+      from: process.env.FROM_EMAIL || 'noreply@quizapp.hu',
+      to: queueItem.recipient_email,
+      subject: subject,
+      html: htmlContent,
+      headers: {
+        'X-Email-Type': 'force-send',
+        'X-Template-Id': queueItem.template_id,
+        'X-Queue-Id': queueItem.id
+      }
+    })
+
+    // Update queue item status to sent
+    await supabase
+      .from('email_queue')
+      .update({ 
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        external_id: result.data?.id,
+        subject: subject,
+        body_html: htmlContent
+      })
+      .eq('id', queue_id)
+
+    // Log analytics
+    try {
+      await supabase
+        .from('email_analytics')
+        .insert({
+          email_queue_id: queue_id,
+          event_type: 'sent',
+          event_date: new Date().toISOString(),
+          external_id: result.data?.id,
+          event_data: { force_send: true }
+        })
+    } catch (analyticsError) {
+      console.warn('Analytics logging failed:', analyticsError)
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      emailId: result.data?.id,
+      message: 'Email sent successfully'
+    })
+
+  } catch (error) {
+    console.error('Force send error:', error)
+    
+    // Update queue item status to failed
+    await supabase
+      .from('email_queue')
+      .update({ 
+        status: 'failed',
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      })
+      .eq('id', queue_id)
+
+    return NextResponse.json(
+      { error: 'Failed to send email' },
+      { status: 500 }
+    )
   }
 }

@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "redirects": [
+    {
+      "source": "/tools/:path*",
+      "destination": "/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/tools",
+      "destination": "/",
+      "permanent": true
+    }
+  ]
+}

@@ -76,13 +76,24 @@ export async function POST(request: NextRequest) {
     
     // Fallback to request origin if no BASE_URL is set
     if (!baseUrl) {
-      baseUrl = request.headers.get('origin') || undefined
+      const origin = request.headers.get('origin')
+      const host = request.headers.get('host')
+      
+      if (origin) {
+        baseUrl = origin
+      } else if (host) {
+        // Determine protocol based on host
+        const protocol = host.includes('localhost') ? 'http' : 'https'
+        baseUrl = `${protocol}://${host}`
+      }
     }
     
-    // For localhost development, use HTTP (Stripe test mode supports this)
+    // For localhost development, ensure HTTP
     if (!baseUrl || baseUrl.includes('localhost')) {
       baseUrl = 'http://localhost:3000'  // Development fallback
     }
+
+    console.log('Stripe checkout redirect base URL:', baseUrl)
 
     // Create Stripe checkout session
   const checkoutSession = await getStripe().checkout.sessions.create({

@@ -20,11 +20,11 @@ const updateQueueItemSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-  const quizId = searchParams.get('quiz_id')
-  const status = searchParams.get('status')
-  const limit = searchParams.get('limit')
-  const offset = searchParams.get('offset')
-  const order = searchParams.get('order') // optional: 'updated_desc'
+    const quizId = searchParams.get('quiz_id')
+    const status = searchParams.get('status')
+    const limit = searchParams.get('limit')
+    const offset = searchParams.get('offset')
+    const order = searchParams.get('order') // optional: 'updated_desc'
 
     if (!quizId) {
       return NextResponse.json(
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin()
 
-    // Get email queue items; filter by quiz via template relation because email_queue may not have quiz_id
+    // Get email queue items
     let query = supabase
       .from('email_queue')
       .select(`
@@ -65,16 +65,10 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', validatedData.status)
     }
 
-    // Execute query
-    // Ordering: default by scheduled_at asc; optional recent ordering by updated_at desc
-    if (order === 'updated_desc') {
-      query = query.order('updated_at', { ascending: false, nullsFirst: false }).order('scheduled_at', { ascending: false })
-    } else {
-      query = query.order('scheduled_at', { ascending: true })
-    }
-
+    // Execute query with a larger initial range to filter by quiz_id
     const { data: queueItemsRaw, error } = await query
-      .range(validatedData.offset, validatedData.offset + validatedData.limit - 1)
+      .order('created_at', { ascending: false })
+      .limit(500) // Get more to filter by quiz
 
     if (error) {
       console.error('Database error:', error)
@@ -85,24 +79,38 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by quiz_id on the application side (based on joined template)
-    const queueItems = (queueItemsRaw || []).filter((item: any) => item.email_templates?.quiz_id === validatedData.quiz_id)
+    const filteredItems = (queueItemsRaw || []).filter((item: any) => 
+      item.email_templates?.quiz_id === validatedData.quiz_id ||
+      item.quiz_id === validatedData.quiz_id // Direct quiz_id if available
+    )
 
-    // Count total by re-querying head count and then filtering is not possible; compute from unpaginated count would be expensive.
-    // For now, approximate total as filtered length within the current page window.
-    const total = queueItems.length + (validatedData.offset || 0)
+    // Apply ordering
+    let queueItems = filteredItems
+    if (order === 'updated_desc') {
+      queueItems = queueItems.sort((a: any, b: any) => 
+        new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+      )
+    } else {
+      queueItems = queueItems.sort((a: any, b: any) => 
+        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+      )
+    }
+
+    // Apply pagination
+    const paginatedItems = queueItems.slice(validatedData.offset, validatedData.offset + validatedData.limit)
 
     return NextResponse.json({ 
-      queueItems,
+      queueItems: paginatedItems,
       pagination: {
-        total,
+        total: queueItems.length,
         limit: validatedData.limit,
         offset: validatedData.offset,
-        hasMore: queueItemsRaw ? queueItemsRaw.length === validatedData.limit : false
+        hasMore: queueItems.length > validatedData.offset + validatedData.limit
       }
     })
 
   } catch (error) {
-    console.error('Email queue API error:', error)
+    console.error('Email queue GET error:', error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -137,7 +145,7 @@ export async function PUT(request: NextRequest) {
       updateData.sent_at = validatedData.sent_at
     }
 
-  const { data, error } = await supabase
+    const { data, error } = await supabase
       .from('email_queue')
       .update(updateData)
       .eq('id', validatedData.id)
@@ -199,10 +207,10 @@ export async function DELETE(request: NextRequest) {
     const supabase = getSupabaseAdmin()
 
     // Only allow canceling pending items
-  const { data, error } = await supabase
+    const { data, error } = await supabase
       .from('email_queue')
       .update({ 
-    status: 'cancelled'
+        status: 'cancelled'
       })
       .eq('id', queueItemId)
       .eq('status', 'pending')

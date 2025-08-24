@@ -6,13 +6,13 @@ import { getSupabaseAdmin } from '@/lib/supabase-config'
 const updateProductSchema = z.object({
   quiz_id: z.string().uuid().optional(),
   name: z.string().min(1).optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   active: z.boolean().optional(),
   price: z.number().positive().optional(), // Regular decimal price field
   currency: z.enum(['HUF', 'EUR', 'USD']).optional(),
   stripe_product_id: z.string().nullable().optional(),
   stripe_price_id: z.string().nullable().optional(),
-  booking_url: z.string().url().nullable().optional(),
+  booking_url: z.string().url().nullable().optional().or(z.literal('')).transform(val => val === '' ? null : val),
   metadata: z.record(z.any()).optional()
 }).refine(data => Object.keys(data).length > 0, {
   message: "At least one field must be provided for update"
@@ -95,9 +95,21 @@ export async function PUT(
     const { id } = await params
     
     const body = await request.json()
-    console.log('Updating product:', id, body)
+    console.log('Updating product:', id, 'body:', JSON.stringify(body, null, 2))
 
-    const validatedData = updateProductSchema.parse(body)
+    // Filter out empty strings and convert to null/undefined where appropriate
+    const cleanedBody = Object.fromEntries(
+      Object.entries(body).map(([key, value]) => {
+        if (value === '' && ['stripe_product_id', 'stripe_price_id', 'booking_url', 'description'].includes(key)) {
+          return [key, null]
+        }
+        return [key, value]
+      })
+    )
+
+    console.log('Cleaned body:', JSON.stringify(cleanedBody, null, 2))
+
+    const validatedData = updateProductSchema.parse(cleanedBody)
 
     // Get existing product for audit trail
     const { data: existingProduct, error: fetchError } = await supabase

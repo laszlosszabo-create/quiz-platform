@@ -16,6 +16,7 @@ const navigation = [
   { name: 'AI Promptok', href: '/admin/prompts', icon: '🤖' },
   { name: 'Termékek', href: '/admin/products', icon: '💰' },
   { name: 'Email Sablonok', href: '/admin/emails', icon: '📧' },
+  { name: 'Email Queue', href: '/admin/email-queue', icon: '📮' },
   { name: 'Riportok', href: '/admin/reports', icon: '📊' },
   { name: 'Audit Log', href: '/admin/audit', icon: '📋' },
 ]
