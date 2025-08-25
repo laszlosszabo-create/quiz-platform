@@ -11,6 +11,12 @@ export function getTranslation(
   fieldKey: string,
   defaultLang: string = 'hu'
 ): string {
+  // Simple in-memory throttle to avoid log spam for missing keys
+  const globalAny: any = globalThis as any
+  if (!globalAny.__missingTranslationCounts) {
+    globalAny.__missingTranslationCounts = {}
+  }
+  const counter = globalAny.__missingTranslationCounts
   // Try requested language first
   const translation = translations.find(
     t => t.lang === lang && t.field_key === fieldKey
@@ -32,7 +38,14 @@ export function getTranslation(
   }
   
   // Ultimate fallback - return field key with warning
-  console.warn(`❌ Missing translation → fallback to default_lang: ${defaultLang} | field_key: ${fieldKey} | requested_lang: ${lang}`)
+  const keySig = `${lang}::${fieldKey}`
+  counter[keySig] = (counter[keySig] || 0) + 1
+  if (counter[keySig] <= 3) {
+    console.warn(`❌ Missing translation → fallback to default_lang: ${defaultLang} | field_key: ${fieldKey} | requested_lang: ${lang} (count=${counter[keySig]})`)
+    if (counter[keySig] === 3) {
+      console.warn('🔇 Further missing translation logs suppressed for', keySig)
+    }
+  }
   return `[${fieldKey}]`
 }
 

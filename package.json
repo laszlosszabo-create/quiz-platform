@@ -22,6 +22,10 @@
     "ci:accept:ai": "MOCK_AI=1 node test-generate-result.js",
     "test:accept:translations": "node test-translations.js",
     "ci:accept:translations": "node test-translations.js",
+  "test:accept:product-ai": "node test-product-ai.js",
+  "check:email-templates": "node scripts/check-email-templates.js",
+  "smoke:ai:real": "FORCE_REAL=1 node test-generate-result.js",
+  "smoke:product-ai:real": "FORCE_REAL=1 node test-product-ai.js",
     "accept:ai:local": "npm run seed:happy && node -e \"const ids=require('./.cache/test-ids.json'); process.env.TEST_SESSION_ID=ids.TEST_SESSION_ID; process.env.TEST_QUIZ_ID=ids.TEST_QUIZ_ID; process.env.TEST_LANG=ids.TEST_LANG; require('./test-generate-result.js')\"",
     "check:schema-cache": "node scripts/check-schema-cache.js"
   },

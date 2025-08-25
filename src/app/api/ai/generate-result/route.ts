@@ -1,732 +1,298 @@
+// Phase 4: Add product result support + force_real + sanitization.
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseAdmin } from '@/lib/supabase-config'
 import { emailTrigger } from '@/lib/email-automation'
-import { markdownToHtml } from '@/lib/markdown'
 import { createAuditLog } from '@/lib/audit-log'
 import OpenAI from 'openai'
+import createDOMPurify from 'dompurify'
+import { JSDOM } from 'jsdom'
 
-// Validation schema
-const generateResultSchema = z
-  .object({
-    session_id: z.string().uuid(),
-    quiz_id: z.string().uuid(),
-    lang: z.string().min(2).max(5),
-    skip_ai_generation: z.boolean().optional(),
-    product_id: z.string().uuid().optional(),
-    result_type: z.enum(['quiz', 'product']).optional().default('quiz'),
-  })
-  .superRefine((data, ctx) => {
-    if (data.result_type === 'product' && !data.product_id) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'product_id is required when result_type is product',
-        path: ['product_id'],
-      })
-    }
-  })
-
-// Note: Do not instantiate OpenAI client at module scope to avoid build-time key checks in CI.
-
-export async function POST(request: NextRequest) {
+const window = new JSDOM('').window as any
+const DOMPurify = createDOMPurify(window)
+function sanitizeAI(html: string) {
   try {
-    const body = await request.json()
-    const validatedData = generateResultSchema.parse(body)
-  const chatModel = process.env.OPENAI_CHAT_MODEL || 'gpt-4.1-mini'
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['h1','h2','h3','h4','p','div','span','strong','em','ul','ol','li','pre','code','br','hr','table','thead','tbody','tr','td','th'],
+      ALLOWED_ATTR: ['class','style']
+    })
+  } catch { return html }
+}
 
-    // Get Supabase admin client
-  const supabase = getSupabaseAdmin()
+const baseSchema = z.object({
+  session_id: z.string().uuid(),
+  quiz_id: z.string().uuid(),
+  lang: z.string().min(2).max(5),
+  force: z.boolean().optional(),
+  mock: z.boolean().optional(),
+  skip_email: z.boolean().optional(),
+  result_type: z.enum(['quiz','product']).optional().default('quiz'),
+  product_id: z.string().uuid().optional(),
+  force_real: z.boolean().optional() // overrides env MOCK_AI when true
+}).superRefine((d, ctx) => {
+  if (d.result_type === 'product' && !d.product_id) {
+    ctx.addIssue({ code:'custom', path:['product_id'], message:'product_id required for product result_type' })
+  }
+})
 
-    // Get session data
-    const { data: session, error: sessionError } = await supabase
-      .from('quiz_sessions')
-      .select('*')
-      .eq('id', validatedData.session_id)
-      .eq('quiz_id', validatedData.quiz_id)
-      .single()
+const OPENAI_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4.1-mini'
+const QUIZ_AI_TIMEOUT_MS = parseInt(process.env.QUIZ_AI_TIMEOUT_MS || '20000', 10)
+const PRODUCT_AI_TIMEOUT_MS = parseInt(process.env.PRODUCT_AI_TIMEOUT_MS || '22000', 10)
 
-    if (sessionError || !session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      )
-    }
+export async function POST(req: NextRequest) {
+  const started = Date.now()
+  let parsed: z.infer<typeof baseSchema>
+  try { parsed = baseSchema.parse(await req.json()) } catch (e) {
+    if (e instanceof z.ZodError) return NextResponse.json({ error:'invalid_request', issues:e.errors }, { status:400 })
+    return NextResponse.json({ error:'bad_json' }, { status:400 })
+  }
 
-    // Branch by result type early to avoid mixing flows
-    const isProduct = validatedData.result_type === 'product'
+  let supabase: any
+  try { supabase = getSupabaseAdmin() } catch { return NextResponse.json({ error:'backend_unavailable' }, { status:503 }) }
 
-    // PRODUCT FLOW: use per-product cache and prompts, do NOT trigger quiz-completion emails
-    if (isProduct) {
-      const productId = validatedData.product_id as string
+  // Load session
+  const { data: session, error: sErr } = await supabase
+    .from('quiz_sessions')
+    .select('id, quiz_id, result_snapshot, answers, scores, user_email, user_name, product_ai_results')
+    .eq('id', parsed.session_id)
+    .eq('quiz_id', parsed.quiz_id)
+    .maybeSingle()
+  if (sErr || !session) return NextResponse.json({ error:'session_not_found' }, { status:404 })
 
-      // Check per-product cached AI result
-      // Prefer SQL table cache if available
-      let existingProductResult: string | undefined
-      try {
-        const { data: row } = await supabase
-          .from('product_ai_results')
-          .select('ai_result')
-          .eq('session_id', validatedData.session_id)
-          .eq('product_id', productId)
-          .eq('quiz_id', validatedData.quiz_id)
-          .eq('lang', validatedData.lang)
-          .maybeSingle()
-        existingProductResult = (row as any)?.ai_result
-      } catch {}
-      // Fallback to legacy JSON cache on session
-      const productAiResults = (session.product_ai_results as any) || {}
-      if (!existingProductResult) existingProductResult = productAiResults?.[productId]?.ai_result
-  const urlProduct = request.nextUrl
-  const forceEmail = urlProduct.searchParams.get('force_email') === '1'
-      if (existingProductResult && !validatedData.skip_ai_generation) {
-        // If force_email is requested, trigger purchase email using cached AI and return
-        if (forceEmail) {
-          try {
-            const userName = session.user_name || (session as any).name || 'Kedves Felhasználó'
-            const userEmail = session.user_email || (session as any).email || ''
-            await emailTrigger.triggerEmails({
-              type: 'purchase',
-              quiz_id: validatedData.quiz_id,
-              user_email: userEmail,
-              user_name: userName,
-              product_id: productId,
-              metadata: { session_id: validatedData.session_id, source: 'product_ai_cached_force' },
-            })
-          } catch (e) {
-            console.warn('Force email (product cached) failed:', e)
-          }
-        }
-        return NextResponse.json({ ai_result: existingProductResult, cached: true })
-      }
+  if (parsed.result_type === 'product') {
+    return handleProductResult({ supabase, parsed, session, started })
+  }
+  return handleQuizResult({ supabase, parsed, session, started })
+}
 
-      // Fetch product details for variables
-      const { data: product } = await supabase
-        .from('products')
-        .select('id, name')
-        .eq('id', productId)
-        .maybeSingle()
+async function handleQuizResult(ctx: { supabase:any, parsed: any, session:any, started:number }) {
+  const { supabase, parsed, session, started } = ctx
+  const snapshot = session.result_snapshot || {}
+  if (snapshot.ai_result && !parsed.force) {
+    return NextResponse.json({ ai_result: snapshot.ai_result, cached:true })
+  }
+  const answers = session.answers || {}
+  const scoresRaw = session.scores || {}
+  const questionCount = Object.keys(answers).length || 0
+  const maxPossible = questionCount * 5 || 1
+  const numericScores = Object.values(scoresRaw).filter(v => typeof v === 'number') as number[]
+  const totalScore = numericScores.length ? numericScores.reduce((a,b)=>a+b,0) : 0
+  const percentage = Math.min(100, Math.max(0, Math.round((totalScore / maxPossible) * 100)))
+  let category = percentage > 60 ? 'Magas' : percentage > 30 ? 'Közepes' : 'Alacsony'
 
-      // Resolve prompts priority: product_configs.ai_prompts > product_ai_prompts > quiz_ai_prompts
-      const { data: productConfigs } = await supabase
-        .from('product_configs')
-        .select('key, value')
-        .eq('product_id', productId)
+  // Prompt fetch
+  let aiPrompt: any = null
+  try { const { data } = await supabase.from('quiz_ai_prompts').select('ai_prompt, system_prompt, max_tokens').eq('quiz_id', parsed.quiz_id).eq('lang', parsed.lang).maybeSingle(); aiPrompt = data } catch {}
 
-      const aiPromptsConfig = productConfigs?.find((c: any) => c.key === 'ai_prompts')?.value as Record<string, any> | undefined
+  if (!aiPrompt?.ai_prompt) {
+    const simple = `<h3>Eredmény összegzés</h3><p>Pontszám: ${totalScore} (${percentage}%) – Kategória: ${category}</p>`
+    await persistCommon({ supabase, parsed, session, snapshot, aiResult:simple })
+    await logAI({ parsed, success:true, fallback:'no_prompt' })
+    await maybeEmail({ parsed, session, aiResult:simple, percentage, category })
+    return NextResponse.json({ ai_result:simple, fallback:'no_prompt', cached:false })
+  }
 
-      const { data: productAiPromptRow } = await supabase
-        .from('product_ai_prompts')
-        .select('*')
-        .eq('product_id', productId)
-        .eq('lang', validatedData.lang)
-        .maybeSingle()
+  const answersList = Object.entries(answers).map(([k,v])=>`${k}: ${v}`).join('\n')
+  let userPrompt = String(aiPrompt.ai_prompt)
+    .replace(/\{\{score\}\}/g, totalScore.toString())
+    .replace(/\{\{percentage\}\}/g, percentage.toString())
+    .replace(/\{\{category\}\}/g, category)
+    .replace(/\{\{answers\}\}/g, answersList)
+    .replace(/\{\{lang\}\}/g, parsed.lang)
 
-      const { data: quizAiPromptRow } = await supabase
-        .from('quiz_ai_prompts')
-        .select('*')
-        .eq('quiz_id', validatedData.quiz_id)
-        .eq('lang', validatedData.lang)
-        .maybeSingle()
-
-      // Compose effective prompts
-      const effectiveSystemPrompt = (aiPromptsConfig?.system_prompt ?? productAiPromptRow?.system_prompt ?? quizAiPromptRow?.system_prompt) || ''
-      const effectiveUserPrompt = (aiPromptsConfig?.result_prompt ?? aiPromptsConfig?.user_prompt ?? productAiPromptRow?.ai_prompt ?? quizAiPromptRow?.ai_prompt) || ''
-      const maxTokens = (aiPromptsConfig?.max_tokens ?? (productAiPromptRow as any)?.max_tokens ?? (quizAiPromptRow as any)?.max_tokens) || 1000
-
-      if (!effectiveUserPrompt.trim()) {
-        return NextResponse.json({ error: 'AI prompt not configured for this language' }, { status: 400 })
-      }
-
-      // Prepare variables common with quiz flow
-      const answers = (session.answers as Record<string, any>) || {}
-      const scores = (session.scores as Record<string, any>) || {}
-
-      const { data: questions } = await supabase
-        .from('quiz_questions')
-        .select('question_text, order_index')
-        .eq('quiz_id', validatedData.quiz_id)
-        .order('order_index')
-
-      const { data: quizData } = await supabase
-        .from('quizzes')
-        .select('title, slug')
-        .eq('id', validatedData.quiz_id)
-        .single()
-
-      let userName = session.user_name || (session as any).name || 'Kedves Felhasználó'
-      let userEmail = session.user_email || (session as any).email || ''
-      if (!userEmail) {
-        try {
-          const { data: leadBySession } = await supabase
-            .from('quiz_leads')
-            .select('email')
-            .eq('session_id', validatedData.session_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-          if (leadBySession?.email) {
-            userEmail = leadBySession.email
-          }
-        } catch {}
-      }
-      if (!userEmail) {
-        try {
-          const { data: genericLead } = await supabase
-            .from('quiz_leads')
-            .select('email')
-            .eq('quiz_id', validatedData.quiz_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-          if (genericLead?.email) {
-            userEmail = genericLead.email
-          }
-        } catch {}
-      }
-
-      const totalScore = Object.values(scores).reduce((sum: number, score) => sum + (Number(score) || 0), 0)
-      const maxPossibleScore = Object.keys(answers).length * 5
-      const percentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0
-      let category = 'Alacsony'
-      if (percentage > 60) category = 'Magas'
-      else if (percentage > 30) category = 'Közepes'
-      const questionsList = questions?.map((q, idx) => `${idx + 1}. ${q.question_text}`).join('\n') || ''
-      const answersList = Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join('\n')
-      const questionsAndAnswers =
-        questions
-          ?.map((q, idx) => {
-            const questionKey = `question_${q.order_index + 1}`
-            const answer = (answers as any)[questionKey] || 'Nincs válasz'
-            return `Kérdés ${idx + 1}: ${q.question_text}\nVálasz: ${answer}`
-          })
-          .join('\n\n') || ''
-
-      let userPrompt = effectiveUserPrompt
-        .replace(/\{\{score\}\}/g, totalScore.toString())
-        .replace(/\{\{percentage\}\}/g, percentage.toString())
-        .replace(/\{\{category\}\}/g, category)
-        .replace(/\{\{answers\}\}/g, answersList)
-        .replace(/\{\{questions\}\}/g, questionsList)
-        .replace(/\{\{questions_and_answers\}\}/g, questionsAndAnswers)
-        .replace(/\{\{name\}\}/g, userName)
-        .replace(/\{\{email\}\}/g, userEmail)
-        .replace(/\{\{product_name\}\}/g, product?.name || 'Termék')
-        .replace(/\{\{quiz_title\}\}/g, quizData?.title || 'Quiz')
-        .replace(/\{\{lang\}\}/g, validatedData.lang)
-
-      // Mock path (product) — do not trigger quiz emails
-    const url = request.nextUrl
-    const mockFlag = url.searchParams.get('mock') === '1'
-      const useMock = mockFlag || process.env.MOCK_AI === '1' || process.env.MOCK_AI === 'true'
-      if (useMock) {
-        const aiResult = `<h3>Mock Product Result (${validatedData.lang})</h3><p>Answers: ${JSON.stringify(answers)}</p><p>Scores: ${JSON.stringify(scores)}</p>`
-        // In mock mode, still trigger purchase automation so end-to-end can be validated
-        try {
-          await emailTrigger.triggerEmails({
-            type: 'purchase',
-            quiz_id: validatedData.quiz_id,
-            user_email: userEmail,
-            user_name: userName,
-            product_id: productId,
-            metadata: { session_id: validatedData.session_id, source: 'product_ai_mock' },
-          })
-        } catch (emailError) {
-          console.error('Purchase email trigger (mock) failed:', emailError)
-        }
-        return NextResponse.json({ ai_result: aiResult, cached: false, mocked: true })
-      }
-
-      try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-        const productAiTimeoutMs = parseInt(process.env.PRODUCT_AI_TIMEOUT_MS || '20000', 10)
-    const chatModel = process.env.OPENAI_CHAT_MODEL || 'gpt-4.1-mini'
-    const completion: any = await Promise.race([
-          openai.chat.completions.create({
-      model: chatModel,
-            messages: [
-              ...(effectiveSystemPrompt ? [{ role: 'system' as const, content: effectiveSystemPrompt as string }] : []),
-              { role: 'user' as const, content: userPrompt },
-            ],
-            max_tokens: maxTokens,
-            temperature: 0.7,
-          }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('AI timeout')), productAiTimeoutMs)),
-        ])
-        const aiResult = (completion as any)?.choices?.[0]?.message?.content?.trim?.()
-        if (!aiResult) throw new Error('Empty AI response')
-
-        // Save AI result under product_ai_results
-        // Write to SQL table (preferred)
-        try {
-          // Extract metadata if available
-          const usage = (completion as any)?.usage || {}
-          const reqId = (completion as any)?.id || undefined
-          await supabase.from('product_ai_results').upsert({
-            session_id: validatedData.session_id,
-            quiz_id: validatedData.quiz_id,
-            product_id: productId,
-            lang: validatedData.lang,
-            ai_result: aiResult,
-            generated_at: new Date().toISOString(),
-            provider: 'openai',
-            model: chatModel,
-            prompt_tokens: usage.prompt_tokens ?? null,
-            completion_tokens: usage.completion_tokens ?? null,
-            total_tokens: usage.total_tokens ?? null,
-            mocked: false,
-            request_id: reqId,
-            metadata: (completion as any) ? { system_prompt: Boolean(effectiveSystemPrompt) } : null,
-          }, { onConflict: 'session_id,product_id,lang' as any })
-        } catch (e) {
-          console.warn('Upsert to product_ai_results failed, falling back to session JSON:', e)
-          const updatedProductResults = {
-            ...productAiResults,
-            [productId]: { ai_result: aiResult, generated_at: new Date().toISOString() },
-          }
-          await supabase.from('quiz_sessions').update({ product_ai_results: updatedProductResults }).eq('id', validatedData.session_id)
-        }
-
-        // Optionally, trigger purchase-specific email automation (not quiz-completion)
-        try {
-          await emailTrigger.triggerEmails({
-            type: 'purchase',
-            quiz_id: validatedData.quiz_id,
-            user_email: userEmail,
-            user_name: userName,
-            product_id: productId,
-            metadata: { session_id: validatedData.session_id },
-          })
-        } catch (emailError) {
-          console.error('Purchase email trigger failed:', emailError)
-        }
-
-        return NextResponse.json({ ai_result: aiResult, cached: false })
-      } catch (aiError) {
-        console.error('AI generation error (product):', aiError)
-        await createAuditLog({
-          user_id: 'system',
-          user_email: 'system@ai',
-          action: 'AI_ERROR',
-          resource_type: 'product_ai_result_generation',
-          resource_id: validatedData.session_id,
-          details: {
-            error: aiError instanceof Error ? aiError.message : 'Unknown AI error',
-            session_id: validatedData.session_id,
-            quiz_id: validatedData.quiz_id,
-            product_id: productId,
-            lang: validatedData.lang,
-          },
-        })
-        return NextResponse.json({ error: 'AI result generation failed' }, { status: 500 })
-      }
-    }
-
-    // QUIZ FLOW (default)
-    // Check if AI result already exists and not skipping AI
-    const existingSnapshot = session.result_snapshot as any
-    if (existingSnapshot?.ai_result && !validatedData.skip_ai_generation) {
-      // Only trigger email if not already triggered
-      if (!existingSnapshot.email_triggered) {
-        await triggerEmailAutomationForResult(session, validatedData)
-        try {
-          await supabase
-            .from('quiz_sessions')
-            .update({ result_snapshot: { ...existingSnapshot, email_triggered: true, triggered_at: new Date().toISOString() } })
-            .eq('id', validatedData.session_id)
-        } catch {}
-      }
-      return NextResponse.json({ ai_result: existingSnapshot.ai_result, cached: true })
-    }
-
-    // If skipping AI generation, generate a simple score-based result for email automation
-    if (validatedData.skip_ai_generation) {
-      // If AI is already cached, reuse it for email to keep parity with the UI
-      const cached = (session.result_snapshot as any)?.ai_result
-      const scoreResult = await generateScoreOnlyResult(session, validatedData.quiz_id, validatedData.lang)
-      if (cached) {
-        scoreResult.ai_result = cached
-      }
-      await triggerEmailAutomationForResult(session, validatedData, scoreResult)
-      return NextResponse.json({ message: 'Email automation triggered', score_result: scoreResult, used_cached_ai: Boolean(cached) })
-    }
-
-    // Get AI prompt for this language
-  const { data: aiPrompt } = await supabase
-      .from('quiz_ai_prompts')
-      .select('*')
-      .eq('quiz_id', validatedData.quiz_id)
-      .eq('lang', validatedData.lang)
-      .single()
-
-  if (!aiPrompt || !aiPrompt.ai_prompt || !String(aiPrompt.ai_prompt).trim()) {
-      return NextResponse.json(
-    { error: 'AI prompt not configured for this language' },
-        { status: 400 }
-      )
-    }
-
-  // Prepare variables for prompt template
-    const answers = session.answers as Record<string, any> || {}
-    const scores = session.scores as Record<string, any> || {}
-    
-    // Get quiz data for title and questions
-    const { data: quizData } = await supabase
-      .from('quizzes')
-      .select('title, slug')
-      .eq('id', validatedData.quiz_id)
-      .single()
-
-    // Get questions for this quiz
-    const { data: questions } = await supabase
-      .from('quiz_questions')
-      .select('question_text, order_index')
-      .eq('quiz_id', validatedData.quiz_id)
-      .order('order_index')
-
-    // Prepare user data with STRICT fallback (no cross-quiz last lead leak)
-    let userName = session.user_name || (session as any).name || 'Kedves Felhasználó'
-    let userEmail = session.user_email || (session as any).email || ''
-    let emailSource = userEmail ? 'session' : 'none'
-    if (!userEmail) {
-      try {
-        const { data: leadBySession } = await supabase
-          .from('quiz_leads')
-          .select('email')
-          .eq('session_id', validatedData.session_id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (leadBySession?.email) {
-          userEmail = leadBySession.email
-          emailSource = 'lead_session'
-        }
-      } catch {}
-    }
-    if (!userEmail) {
-      return NextResponse.json({ error: 'missing_email', message: 'Nincs rögzített email ehhez a sessionhöz' }, { status: 409 })
-    }
-    
-    // Calculate percentage and category
-    const totalScore = Object.values(scores).reduce((sum: number, score) => sum + (Number(score) || 0), 0)
-    const maxPossibleScore = Object.keys(answers).length * 5 // Assuming max 5 points per question
-    const percentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0
-    
-    // Determine category based on score
-    let category = 'Alacsony'
-    if (percentage > 60) category = 'Magas'
-    else if (percentage > 30) category = 'Közepes'
-    
-    // Format questions list
-    const questionsList = questions?.map((q, idx) => `${idx + 1}. ${q.question_text}`).join('\n') || ''
-    
-    // Format answers list
-    const answersList = Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join('\n')
-    
-    // Format questions and answers pairs
-    const questionsAndAnswers = questions?.map((q, idx) => {
-      const questionKey = `question_${q.order_index + 1}`
-      const answer = answers[questionKey] || 'Nincs válasz'
-      return `Kérdés ${idx + 1}: ${q.question_text}\nVálasz: ${answer}`
-    }).join('\n\n') || ''
-
-  // Replace variables in user prompt template (canonical ai_prompt only)
-  let userPrompt = aiPrompt.ai_prompt as string
-    userPrompt = userPrompt
-      .replace(/\{\{score\}\}/g, totalScore.toString())
-      .replace(/\{\{percentage\}\}/g, percentage.toString())
-      .replace(/\{\{category\}\}/g, category)
-      .replace(/\{\{answers\}\}/g, answersList)
-      .replace(/\{\{questions\}\}/g, questionsList)
-      .replace(/\{\{questions_and_answers\}\}/g, questionsAndAnswers)
-      .replace(/\{\{name\}\}/g, userName)
-      .replace(/\{\{email\}\}/g, userEmail)
-      .replace(/\{\{product_name\}\}/g, 'Quiz Termék') // This should be dynamic if product context available
-      .replace(/\{\{quiz_title\}\}/g, quizData?.title || 'Quiz')
-      .replace(/\{\{lang\}\}/g, validatedData.lang)
-
-    // Optional mock path for tests (no OpenAI call, no DB writes)
-    const url = request.nextUrl
-    const mockFlag = url.searchParams.get('mock') === '1'
-    const useMock = mockFlag || process.env.MOCK_AI === '1' || process.env.MOCK_AI === 'true'
-    if (useMock) {
-      const aiResult = `<h3>Mock Result (${validatedData.lang})</h3><p>Answers: ${JSON.stringify(answers)}</p><p>Scores: ${JSON.stringify(scores)}</p>`
-      // Fire email trigger even in mock mode so automations are testable
-      try {
-        await emailTrigger.triggerQuizCompletion(
-          validatedData.quiz_id,
-          userEmail,
-          {
-            percentage: percentage,
-            text: category,
-            ai_result: aiResult,
-          },
-          userName,
-          validatedData.session_id
-        )
-      } catch (emailError) {
-        console.error('Email trigger (mock) failed:', emailError)
-      }
-      return NextResponse.json({ ai_result: aiResult, cached: false, mocked: true })
-    }
-
+  const useMock = !parsed.force_real && (parsed.mock || process.env.MOCK_AI === '1' || process.env.MOCK_AI === 'true')
+  let aiResult=''; let usage:any=null; let requestId:string|null=null; let errorMessage:string|null=null
+  if (useMock) {
+    aiResult = `<h3>Mock Quiz AI (${parsed.lang})</h3><p>${category} – ${percentage}%</p>`
+  } else {
     try {
-      // Lazily create OpenAI client only when needed (avoids build-time key requirement)
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-      
-      // Get max_tokens from AI prompt config, default to 1000
-      const maxTokens = aiPrompt.max_tokens || 1000
-      const quizAiTimeoutMs = parseInt(process.env.QUIZ_AI_TIMEOUT_MS || '20000', 10)
-      
-      // Generate AI result with timeout
-      const completion: any = await Promise.race([
-        openai.chat.completions.create({
-          model: chatModel,
-          messages: (
-            [
-              ...(aiPrompt.system_prompt ? [{ role: 'system' as const, content: aiPrompt.system_prompt as string }] : []),
-              { role: 'user' as const, content: userPrompt },
-            ]
-          ),
-          max_tokens: maxTokens,
-          temperature: 0.7,
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+      const completion:any = await Promise.race([
+        client.chat.completions.create({
+          model: OPENAI_MODEL,
+          messages:[...(aiPrompt.system_prompt?[{role:'system' as const, content:aiPrompt.system_prompt as string}]:[]), { role:'user' as const, content:userPrompt }],
+          max_tokens: aiPrompt.max_tokens || 800,
+          temperature:0.7
         }),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('AI timeout')), quizAiTimeoutMs)
-        )
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('AI timeout')), QUIZ_AI_TIMEOUT_MS))
       ])
-  const aiResultRaw = (completion as any)?.choices?.[0]?.message?.content?.trim?.()
-      const aiResult = aiResultRaw
-      if (!aiResult) {
-        throw new Error('Empty AI response')
-      }
-
-      if (!aiResult) {
-        throw new Error('Empty AI response')
-      }
-
-      // Save AI result to session
-      const updatedSnapshot = {
-        ...existingSnapshot,
-        ai_result: aiResult,
-        generated_at: new Date().toISOString()
-      }
-
-      await supabase
-        .from('quiz_sessions')
-        .update({ result_snapshot: updatedSnapshot, ai_result_generated_at: new Date().toISOString() })
-        .eq('id', validatedData.session_id)
-
-      // Trigger quiz completion email after AI result is generated (convert markdown to HTML for email)
-      try {
-        const aiHtml = markdownToHtml(aiResult)
-  await emailTrigger.triggerQuizCompletion(
-          validatedData.quiz_id,
-          userEmail,
-          {
-            percentage: percentage,
-            text: category,
-            ai_result: aiHtml
-          },
-          userName,
-          validatedData.session_id
-        )
-  // (emailSource jelenleg lokális; jövőbeni bővítéshez injection szükséges az automation rétegbe)
-      } catch (emailError) {
-        console.error('Email trigger failed:', emailError)
-        // Don't fail the API call if email fails
-      }
-
-      return NextResponse.json({
-        ai_result: aiResult,
-        cached: false,
-        metadata: {
-          provider: 'openai',
-          model: chatModel,
-          usage: (completion as any)?.usage || null,
-          request_id: (completion as any)?.id || null
-        }
-      })
-
-    } catch (aiError) {
-      console.error('AI generation error:', aiError)
-
-      // Log AI error for monitoring
-      await createAuditLog({
-        user_id: 'system',
-        user_email: 'system@ai',
-        action: 'AI_ERROR',
-        resource_type: 'ai_result_generation',
-        resource_id: validatedData.session_id,
-        details: {
-          error: aiError instanceof Error ? aiError.message : 'Unknown AI error',
-          session_id: validatedData.session_id,
-          quiz_id: validatedData.quiz_id,
-          lang: validatedData.lang
-        }
-      })
-
-      // Graceful fallback: try score-only helper, but never fail the request
-      let scoreResult: { percentage: number; text: string; ai_result: string }
-      try {
-        scoreResult = await generateScoreOnlyResult(session, validatedData.quiz_id, validatedData.lang)
-      } catch (scErr) {
-        // Last-ditch basic fallback using already computed values
-        const basicHtml = `<h3>Összefoglalás</h3><p>Egy gyors összefoglalót küldünk e-mailben. Ha az AI elemzés elkészül, automatikusan megkapja.</p>`
-        scoreResult = { percentage, text: category, ai_result: basicHtml }
-      }
-      try {
-        await triggerEmailAutomationForResult(session, validatedData, scoreResult)
-      } catch {}
-      return NextResponse.json(
-        {
-          ai_result: scoreResult.ai_result,
-          cached: false,
-          fallback: 'score_only',
-          error: aiError instanceof Error ? aiError.message : 'AI_error',
-        },
-        { status: 200 }
-      )
+      aiResult = completion?.choices?.[0]?.message?.content?.trim?.() || ''
+      usage = completion?.usage || null
+      requestId = completion?.id || null
+      if(!aiResult) throw new Error('empty_ai_result')
+    } catch(e:any){
+      errorMessage = e?.message || 'ai_error'
+      aiResult = `<h3>Összefoglaló (Fallback)</h3><p>Pontszám: ${totalScore} (${percentage}%) – Kategória: ${category}</p>`
     }
-
-  } catch (error) {
-    console.error('AI API error:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
   }
+  aiResult = sanitizeAI(aiResult)
+  await persistCommon({ supabase, parsed, session, snapshot, aiResult })
+  await logAI({ parsed, success:!errorMessage, error:errorMessage, requestId, usage, model:OPENAI_MODEL })
+  await maybeEmail({ parsed, session, aiResult, percentage, category })
+  return NextResponse.json({ ai_result:aiResult, cached:false, mock:useMock||undefined, model:OPENAI_MODEL, usage, request_id:requestId, error:errorMessage||undefined, duration_ms: Date.now()-started })
 }
 
-// Helper function to generate score-only result for email automation
-async function generateScoreOnlyResult(session: any, quizId: string, lang: string) {
-  const supabase = getSupabaseAdmin()
-  
-  // Get quiz questions and scoring rules
-  const { data: questions } = await supabase
-    .from('quiz_questions')
-    .select('*')
-    .eq('quiz_id', quizId)
-    .order('order_index')
+async function handleProductResult(ctx: { supabase:any, parsed:any, session:any, started:number }) {
+  const { supabase, parsed, session, started } = ctx
+  const productId = parsed.product_id
 
-  const { data: scoringRules } = await supabase
-    .from('quiz_scoring_rules')
-    .select('*')
-    .eq('quiz_id', quizId)
+  // First check dedicated table cache
+  try {
+    const { data: existingRow } = await supabase
+      .from('product_ai_results')
+      .select('ai_result')
+      .eq('session_id', parsed.session_id)
+      .eq('product_id', productId)
+      .eq('lang', parsed.lang)
+      .maybeSingle()
+    if (existingRow?.ai_result && !parsed.force) {
+      return NextResponse.json({ ai_result: existingRow.ai_result, cached:true, type:'product', source:'table' })
+    }
+  } catch (e) {
+    console.warn('product_cache_table_check_failed', (e as any)?.message)
+  }
 
-  // Calculate score
-  const answers = session.answers as Record<string, any> || {}
-  let totalScore = 0
+  const productResults = session.product_ai_results || {}
+  const existing = productResults[productId]?.ai_result
+  if (existing && !parsed.force) {
+    return NextResponse.json({ ai_result: existing, cached:true, type:'product', source:'session' })
+  }
 
-  questions?.forEach(question => {
-    const answer = answers[question.key]
-    if (!answer) return
-
-    const options = question.options as any[] || []
-    
-    if (question.type === 'single') {
-      const option = options.find(opt => opt.key === answer)
-      if (option?.score) {
-        totalScore += option.score
+  // Product prompt precedence: product_configs.ai_prompts > product_ai_prompts > quiz_ai_prompts
+  let productPrompt: any = null
+  let systemPrompt = ''
+  let maxTokens = 800
+  try {
+    const { data: configs } = await supabase.from('product_configs').select('key,value').eq('product_id', productId)
+    const aiPromptsConfig = configs?.find((c:any)=>c.key==='ai_prompts')?.value
+    if (aiPromptsConfig) {
+      productPrompt = aiPromptsConfig.result_prompt || aiPromptsConfig.user_prompt
+      systemPrompt = aiPromptsConfig.system_prompt || ''
+      maxTokens = aiPromptsConfig.max_tokens || maxTokens
+    }
+    if (!productPrompt) {
+      const { data: prodRow } = await supabase.from('product_ai_prompts').select('ai_prompt, system_prompt, max_tokens').eq('product_id', productId).eq('lang', parsed.lang).maybeSingle()
+      if (prodRow) {
+        productPrompt = prodRow.ai_prompt
+        systemPrompt = prodRow.system_prompt || systemPrompt
+        maxTokens = prodRow.max_tokens || maxTokens
       }
-    } else if (question.type === 'multi' && Array.isArray(answer)) {
-      answer.forEach(answerKey => {
-        const option = options.find(opt => opt.key === answerKey)
-        if (option?.score) {
-          totalScore += option.score
-        }
-      })
     }
-  })
+    if (!productPrompt) {
+      const { data: quizRow } = await supabase.from('quiz_ai_prompts').select('ai_prompt, system_prompt, max_tokens').eq('quiz_id', parsed.quiz_id).eq('lang', parsed.lang).maybeSingle()
+      if (quizRow) {
+        productPrompt = quizRow.ai_prompt
+        systemPrompt = quizRow.system_prompt || systemPrompt
+        maxTokens = quizRow.max_tokens || maxTokens
+      }
+    }
+  } catch {}
 
-  // Determine category based on scoring rules
-  let category = 'Alacsony'
-  let scorePercentage = 0
-  
-  if (scoringRules && scoringRules.length > 0) {
-    // FIXED: Find the appropriate scoring rule based on totalScore range
-    const applicableRule = scoringRules
-      .sort((a, b) => (b.weights as any)?.min_score - (a.weights as any)?.min_score) // Sort by min_score descending
-      .find(rule => {
-        const weights = rule.weights as any || {}
-        const minScore = weights.min_score || 0
-        const maxScore = weights.max_score || 100
-        return totalScore >= minScore && totalScore <= maxScore
-      })
-    
-    if (applicableRule) {
-      const weights = applicableRule.weights as any || {}
-      category = weights.category || 'Alacsony'
-      
-      // Calculate percentage within the specific rule range
-      const minScore = weights.min_score || 0
-      const maxScore = weights.max_score || 100
-      scorePercentage = maxScore > minScore ? 
-        Math.round(((totalScore - minScore) / (maxScore - minScore)) * 100) : 0
-    }
+  if (!productPrompt) {
+    const simple = `<h3>Termék eredmény nem elérhető</h3><p>Hiányzó AI prompt (${parsed.lang}).</p>`
+    await logAI({ parsed, success:true, fallback:'no_product_prompt', product:true })
+    return NextResponse.json({ ai_result:simple, fallback:'no_prompt', cached:false, type:'product' })
   }
 
-  return {
-    percentage: Math.round(scorePercentage),
-    text: category,
-    ai_result: `<h3>Összefoglalás:</h3><p>Az Ön eredménye: ${totalScore} pont (${Math.round(scorePercentage)}%). Kategória: ${category}</p>`
-  }
-}
+  const answers = session.answers || {}
+  const answersList = Object.entries(answers).map(([k,v])=>`${k}: ${v}`).join('\n')
+  let userPrompt = String(productPrompt).replace(/\{\{answers\}\}/g, answersList).replace(/\{\{lang\}\}/g, parsed.lang)
 
-// Helper function to trigger email automation
-async function triggerEmailAutomationForResult(session: any, validatedData: any, scoreResult?: any) {
-  const supabase = getSupabaseAdmin()
-  
-  // Get user data
-  let userName = session.user_name || (session as any).name || 'Kedves Felhasználó'
-  let userEmail = session.user_email || (session as any).email || ''
-  
-  if (!userEmail) {
+  const useMock = !parsed.force_real && (parsed.mock || process.env.MOCK_AI === '1' || process.env.MOCK_AI === 'true')
+  let aiResult=''; let usage:any=null; let requestId:string|null=null; let errorMessage:string|null=null
+  if (useMock) {
+    aiResult = `<h3>Mock Product AI (${parsed.lang})</h3><pre>${answersList}</pre>`
+  } else {
     try {
-      const { data: leadBySession } = await supabase
-        .from('quiz_leads')
-  .select('email')
-        .eq('session_id', validatedData.session_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (leadBySession?.email) {
-        userEmail = leadBySession.email
-  // name not present in legacy schema
-      }
-    } catch {}
-  }
-
-  // If no email yet, still proceed; the queue item will be scheduled with grace and backfilled
-
-  // Use existing result or provided score result
-  const existingSnapshot = session.result_snapshot as any
-  const quizResult = scoreResult || {
-    percentage: 0,
-    text: 'Eredmény',
-    ai_result: existingSnapshot?.ai_result || '<p>Az eredményét sikeresen kiszámítottuk.</p>'
-  }
-
-  // Trigger email automation (quiz flow only)
-  if (validatedData.result_type !== 'product') {
-    // Ensure AI content is HTML for email
-    const quizResultForEmail = {
-      ...quizResult,
-      ai_result: markdownToHtml(quizResult.ai_result || ''),
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+      const completion:any = await Promise.race([
+        client.chat.completions.create({
+          model: OPENAI_MODEL,
+          messages:[...(systemPrompt?[{role:'system' as const, content:systemPrompt as string}]:[]), { role:'user' as const, content:userPrompt }],
+          max_tokens: maxTokens,
+          temperature:0.7
+        }),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('AI timeout')), PRODUCT_AI_TIMEOUT_MS))
+      ])
+      aiResult = completion?.choices?.[0]?.message?.content?.trim?.() || ''
+      usage = completion?.usage || null
+      requestId = completion?.id || null
+      if(!aiResult) throw new Error('empty_ai_result')
+    } catch(e:any){
+      errorMessage = e?.message || 'ai_error'
+      aiResult = `<h3>Termék eredmény (Fallback)</h3><p>AI hiba: ${errorMessage}</p>`
     }
-    await emailTrigger.triggerQuizCompletion(
-      validatedData.quiz_id,
-      userEmail,
-      quizResultForEmail,
-      userName,
-      validatedData.session_id
-    )
   }
+  aiResult = sanitizeAI(aiResult)
+
+  // Persist product result (preferred table)
+  try {
+    await supabase.from('product_ai_results').upsert({
+      session_id: parsed.session_id,
+      quiz_id: parsed.quiz_id,
+      product_id: productId,
+      lang: parsed.lang,
+      ai_result: aiResult,
+      generated_at: new Date().toISOString(),
+      provider: 'openai',
+      model: OPENAI_MODEL,
+      prompt_tokens: usage?.prompt_tokens || null,
+      completion_tokens: usage?.completion_tokens || null,
+      total_tokens: usage?.total_tokens || null,
+      mocked: useMock || false,
+      request_id: requestId,
+      metadata: usage ? { system_prompt: !!systemPrompt } : null
+    }, { onConflict: 'session_id,product_id,lang' as any })
+  } catch (e) {
+    console.warn('product_result_upsert_failed', (e as any)?.message)
+  }
+
+  // Update session.product_ai_results for faster subsequent calls
+  try {
+    const updatedResults = { ...session.product_ai_results, [productId]: { ai_result: aiResult, generated_at: new Date().toISOString() } }
+    await supabase.from('quiz_sessions').update({ product_ai_results: updatedResults }).eq('id', parsed.session_id)
+  } catch (e) {
+    console.warn('session_product_ai_results_update_failed', (e as any)?.message)
+  }
+
+  await logAI({ parsed, success: !errorMessage, error: errorMessage, requestId, usage, model: OPENAI_MODEL, product:true })
+
+  // Product purchase email trigger (purchase type) – not quiz_complete
+  if (!parsed.skip_email) {
+    try {
+      await emailTrigger.triggerEmails({
+        type: 'purchase',
+        quiz_id: parsed.quiz_id,
+        user_email: session.user_email || 'placeholder@example.com',
+        user_name: session.user_name || 'Felhasználó',
+        product_id: productId,
+        metadata: { session_id: parsed.session_id }
+      })
+    } catch (e) {
+      console.warn('product_email_trigger_failed', (e as any)?.message)
+    }
+  }
+
+  return NextResponse.json({ ai_result: aiResult, cached:false, mock:useMock||undefined, model:OPENAI_MODEL, usage, request_id:requestId, error:errorMessage||undefined, type:'product', duration_ms: Date.now()-started })
 }
+
+async function persistCommon({ supabase, parsed, session, snapshot, aiResult }:{ supabase:any, parsed:any, session:any, snapshot:any, aiResult:string }) {
+  try { await supabase.from('quiz_sessions').update({ result_snapshot: { ...snapshot, ai_result: aiResult, generated_at: new Date().toISOString() } }).eq('id', parsed.session_id) } catch(e:any){ console.warn('snapshot_update_failed', e?.message) }
+}
+
+async function logAI(opts:{ parsed:any, success:boolean, error?:string|null, requestId?:string|null, usage?:any, model?:string, fallback?:string, product?:boolean }) {
+  try {
+    await createAuditLog({
+      user_id:'system', user_email:'system@ai', action: opts.success ? 'AI_RESULT_SUCCESS':'AI_RESULT_FALLBACK', resource_type: opts.product?'product_result':'quiz_session', resource_id: opts.parsed.session_id, details:{ quiz_id: opts.parsed.quiz_id, product_id: opts.parsed.product_id||null, lang: opts.parsed.lang, model: opts.model, usage: opts.usage, requestId: opts.requestId, error: opts.error||null, fallback: opts.fallback||null, result_type: opts.parsed.result_type }
+    })
+  } catch(e:any){ console.warn('audit_log_failed', e?.message) }
+}
+
+async function maybeEmail({ parsed, session, aiResult, percentage, category }:{ parsed:any, session:any, aiResult:string, percentage:number, category:string }) {
+  if (parsed.skip_email) return
+  try {
+    await emailTrigger.triggerQuizCompletion(parsed.quiz_id, session.user_email || 'placeholder@example.com', { percentage, text: category, ai_result: aiResult }, session.user_name || 'Felhasználó', parsed.session_id)
+  } catch(e:any){ console.warn('email_trigger_failed', e?.message) }
+}
+
+export async function GET() { return NextResponse.json({ error:'method_not_allowed', allowed:['POST'] }, { status:405 }) }

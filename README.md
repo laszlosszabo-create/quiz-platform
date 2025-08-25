@@ -158,6 +158,16 @@ npm run test:e2e
 
 # Linting
 npm run lint
+
+# Product AI acceptance
+npm run test:accept:product-ai
+
+# Email template token ellenőrzés
+npm run check:email-templates
+
+# OpenAI valós smoke (env OPENAI_API_KEY + FORCE_REAL=1 implicit flag használható)
+npm run smoke:ai:real
+npm run smoke:product-ai:real
 ```
 
 ## 🚀 Deploy
@@ -201,3 +211,27 @@ npm run test
 ## 📄 Licenc
 
 MIT License
+
+---
+
+## Product AI Eredmény Generálás (2025-08-25)
+
+Beépítésre került a termék vásárlás utáni AI eredmény generálás:
+- Prompt prioritás: product_configs.ai_prompts > product_ai_prompts > quiz_ai_prompts
+- Kettős cache: product_ai_results tábla + session.product_ai_results JSON
+- OpenAI + mock támogatás (MOCK_AI env / runtime mock flag)
+- Időkorlát és fallback HTML
+- Audit log (resource_type: product_result)
+- Purchase email trigger enrichment (product_name, ai_result)
+
+## Új Migrációs / Seed Fájlok
+
+`sql/20250825_add_product_ai_results_index.sql` – egyedi composite index (session_id, product_id, lang)
+
+`sql/20250825_add_missing_translation_keys.sql` – hiányzó fordítási kulcsok beszúrása (result_title, purchase_success_title, stb.) minden quizhez (ON CONFLICT DO NOTHING)
+
+Futtatás (Supabase CLI példával):
+```bash
+supabase db push || psql $DATABASE_URL -f sql/20250825_add_product_ai_results_index.sql
+psql $DATABASE_URL -f sql/20250825_add_missing_translation_keys.sql
+```
