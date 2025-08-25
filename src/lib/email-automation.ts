@@ -523,8 +523,27 @@ export class EmailAutomationTrigger {
       const criticalEvents = (process.env.CRITICAL_EMAIL_EVENTS || 'quiz_complete,purchase').split(',').map(s=>s.trim()).filter(Boolean)
       const isCritical = criticalEvents.includes(event.type)
       if (isDev || autoProcess || isCritical) {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-        fetch(`${baseUrl}/api/cron/process-email-queue?safe=true&backfill=true&retry=true&rate=5`).catch(() => {})
+        let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || ''
+        // Production fallback: derive from VERCEL_URL if baseUrl not set or points to localhost
+        if (!baseUrl || /localhost/.test(baseUrl)) {
+          if (process.env.VERCEL_URL) {
+            baseUrl = `https://${process.env.VERCEL_URL}`
+          }
+        }
+        const path = '/api/cron/process-email-queue?safe=true&backfill=true&retry=true&rate=5'
+        try {
+          if (baseUrl) {
+            console.log('[AUTO_EMAIL_TRIGGER] invoking absolute', baseUrl+path, { isDev, isCritical })
+            fetch(baseUrl + path).catch(e=>console.warn('auto_process_abs_fetch_fail', e?.message))
+          } else {
+            console.log('[AUTO_EMAIL_TRIGGER] invoking relative', path, { isDev, isCritical })
+            fetch(path).catch(e=>console.warn('auto_process_rel_fetch_fail', e?.message))
+          }
+        } catch (e) {
+          console.warn('Email auto-process trigger failed:', e)
+        }
+      } else {
+        console.log('[AUTO_EMAIL_TRIGGER] skipped', { isDev, autoProcess, isCritical })
       }
     } catch (e) {
       console.warn('Email auto-process trigger failed:', e)
