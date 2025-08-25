@@ -31,6 +31,7 @@ Az elmúlt ciklusban több, egymással összefüggő kritikus hibát azonosítot
 - Legacy / új séma kompatibilitás: trigger_event lekérdezés hibára fallback a rule_type mezőre.
 - Purchase enrichment: product_name + product AI eredmény (session cache vagy product_ai_results tábla) + markdown→HTML konverzió.
 - Template validáció: hiányzó tokenek esetén FAILED queue elem egyértelmű hibaüzenettel.
+- Production critical auto-process: `quiz_complete` és `purchase` események automatikus queue feldolgozás trigger akkor is, ha NODE_ENV=production (override: CRITICAL_EMAIL_EVENTS, EMAIL_AUTOPROCESS env).
 
 ### 3.4 Product AI Generálás
 - Új schema mezők: result_type, product_id, force_real.

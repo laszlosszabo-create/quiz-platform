@@ -208,7 +208,13 @@ function escapeHtmlForEvaluation(input?: string): string {
 }
 
 export class EmailAutomationTrigger {
-  private supabase = getSupabaseAdmin()
+  private _supabase: any | null = null
+  private get supabase() {
+    if (!this._supabase) {
+      this._supabase = getSupabaseAdmin()
+    }
+    return this._supabase
+  }
 
   async triggerEmails(event: EmailTriggerEvent): Promise<void> {
     try {
@@ -514,9 +520,10 @@ export class EmailAutomationTrigger {
     try {
       const isDev = process.env.NODE_ENV !== 'production'
       const autoProcess = process.env.EMAIL_AUTOPROCESS === '1' || process.env.EMAIL_AUTOPROCESS === 'true'
-      if (isDev || autoProcess) {
+      const criticalEvents = (process.env.CRITICAL_EMAIL_EVENTS || 'quiz_complete,purchase').split(',').map(s=>s.trim()).filter(Boolean)
+      const isCritical = criticalEvents.includes(event.type)
+      if (isDev || autoProcess || isCritical) {
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-        // Fire-and-forget; ignore response
         fetch(`${baseUrl}/api/cron/process-email-queue?safe=true&backfill=true&retry=true&rate=5`).catch(() => {})
       }
     } catch (e) {
@@ -700,5 +707,14 @@ export class EmailAutomationTrigger {
   }
 }
 
-// Singleton instance for use across the app
-export const emailTrigger = new EmailAutomationTrigger()
+// Lazy singleton accessor to avoid hard crash during environment diagnostics
+let _emailTrigger: EmailAutomationTrigger | null = null
+export const emailTrigger = (() => {
+  return new Proxy({}, {
+    get(_t, prop) {
+      if (!_emailTrigger) _emailTrigger = new EmailAutomationTrigger()
+      // @ts-ignore
+      return _emailTrigger[prop]
+    }
+  }) as unknown as EmailAutomationTrigger
+})()
